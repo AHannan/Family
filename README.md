@@ -1,157 +1,198 @@
-# Family Tree Manager
+# Family Tree
 
-A family tree you can browse, edit and hand to someone else. No build step, no
-server, no dependencies — open `index.html` in a browser and it runs.
+Build and keep your family tree. Works in **English and Urdu**, on a phone or a
+laptop, and is designed so that someone who is not comfortable with software can
+still use it on their own.
 
-It ships with a worked example: the lineage of Prophet Muhammad ﷺ, 85 people
-from ʿAdnan down to the beginnings of the sayyid and sharif houses. Replace it
-with your own family whenever you like.
+A Next.js app. Everything is stored on the device — no account, no sign-up, no
+server to run.
 
 ## Running it
 
-Double-click `index.html`. That is the whole setup.
-
-It works from `file://` on purpose — the data is a plain `.js` file rather than
-a `.json` fetch, so nothing is blocked by browser security rules and you never
-need a local server. If you would rather serve it (to share on a LAN, say):
-
 ```sh
-python -m http.server 8000     # then open http://localhost:8000
+npm install
+npm run dev          # http://localhost:3000
 ```
 
-## The three views
+```sh
+npm run build && npm start   # production
+```
+
+## What it does
+
+- **Several families.** Start as many as you like from the home screen; rename
+  or remove any of them.
+- **Add relatives by relationship.** "Add son", "Add wife", "Add father" —
+  never "create a record". The relationship is wired up for you.
+- **Three ways to look at a family**, switchable at any time.
+- **English ⇄ Urdu**, with the whole interface flipping right-to-left.
+- **Undo** on every change, with an Undo button in the message that appears.
+- **Backup to a file** and restore it on any device.
+
+### Designed for a non-technical user
+
+This part drove most of the design decisions, so they are worth spelling out:
+
+- **The Family view is the default, not a chart.** It shows one person with
+  their parents above, husband or wife beside, and children below. Tapping any
+  relative walks to them, so the whole tree is reachable without ever touching a
+  zoom control.
+- **Every empty slot is a labelled button.** A missing mother is not a blank
+  space, it is a dashed "+ Add mother" button in the place a mother would go.
+- **Fewer questions per screen.** Adding a daughter does not ask for her
+  gender — the button already said it — and does not show parent pickers,
+  because the relationship is already known. One question: her name.
+- **Adding a relative keeps you where you are.** Entering four children in a row
+  does not make you walk back after each one.
+- **Nothing is icon-only.** Every control has words on it.
+- **Tap targets are at least 3rem**, which is 48px at the default text size and
+  grows with it.
+- **Text size is a setting** — Normal, Large, Very large — and it scales the
+  entire interface, not just body copy.
+- **Destructive actions ask in plain language**, say what will happen to
+  everyone else, and can be undone from the message afterwards.
+- **The tree grows upward by itself.** Add a grandfather and the chart
+  re-roots on him, so nobody has to discover the "Start from" control.
+
+### The three views
 
 | View | What it is for |
 | --- | --- |
-| **Tree** | The descendant chart. Pick who it starts from, pan, zoom, collapse branches. |
-| **Lineage** | One person's direct ancestral chain, numbered by generation. Best for long unbranching descents. |
-| **People** | Every person in a sortable, filterable table. The filter searches names, titles, notes and tags. |
+| **Family** | One person and their immediate family. The default, and the easiest. |
+| **Whole tree** | The full chart — pan, zoom, collapse branches. |
+| **List** | Every person, searchable. |
 
-## Using it
+## Urdu
 
-- **Click anyone** to open their card on the right: dates, notes, and every
-  relative as a button you can click through to.
-- **Add people** from a person's card (`+ Child`, `+ Spouse`, `+ Parent`,
-  `+ Sibling`) so the relationship is wired up for you, or with `+ Add person`
-  in the header for someone unattached.
-- **Collapse a branch** with the small circle at the bottom of a card. The
-  number on it tells you how many children are hidden.
-- **Search** with `/` or the header box. Jumping to someone expands any
-  collapsed branch in their way and centres the canvas on them.
-- **Undo** with `Ctrl+Z`, or from the link in the message that appears after a
-  change. The last 40 changes are kept.
-- **Start the tree somewhere else** with the `Start from` dropdown, or
-  `Start tree here` on anyone's card.
+Choosing اردو sets `lang` and `dir` on the document, and the layout flips
+right-to-left throughout — the back arrow, the tabs, the cards, the forms.
+Urdu text is set in Noto Nastaliq Urdu with the extra leading Nastaliq needs.
 
-## Your data
+Every person can carry two names, one in Latin script and one in Urdu. Whichever
+matches the current language is shown large, and the other is shown underneath,
+so a family with relatives who read only one of the two scripts still works.
 
-Everything you change is saved to this browser's local storage immediately.
-That means it is private to you and survives closing the tab, but it does **not**
-sync between browsers, devices or profiles, and clearing site data erases it.
+The language switch sits in the header on every screen rather than inside
+Settings, and each option is written in its own script — someone who opens the
+app in a language they cannot read is still one tap from fixing it.
 
-So: **export a JSON copy** (`⋯ → Export JSON`) whenever you have done real work.
-`Import JSON` reads it back on any machine, and `Reset to sample lineage`
-restores the shipped dataset.
+## Where your data lives
 
-### Data format
+In this browser, on this device. That is the trade for having no account to
+create and no password to remember, and the app says so on the home screen.
 
-Export and import both use this shape, which is also what `js/seed.js` holds:
+It means: trees do not sync between your phone and your laptop, and clearing
+browser data erases them. **Settings → Backup → Save a backup file** writes
+everything to one JSON file; "Open a backup file" reads it back on any device
+and merges it with whatever is already there.
+
+### File format
 
 ```json
 {
-  "meta": {
-    "title": "Ahl al-Bayt",
-    "subtitle": "The lineage of Prophet Muhammad ﷺ",
-    "rootId": "abd-al-muttalib",
-    "focusId": "muhammad",
-    "note": "Shown at the foot of the Lineage view."
-  },
-  "people": [
+  "version": 1,
+  "settings": { "locale": "en", "textScale": 1 },
+  "trees": [
     {
-      "id": "muhammad",
-      "name": "Muhammad",
-      "arabic": "مُحَمَّد",
-      "title": "Messenger of God",
-      "gender": "m",
-      "birth": "c. 570 CE",
-      "death": "11 AH / 632 CE",
-      "fatherId": "abdullah",
-      "motherId": "amina",
-      "spouseIds": ["khadija"],
-      "tags": ["prophet"],
-      "notes": "Free text, shown on the person's card."
+      "id": "t1a2b3c4",
+      "name": "The Khan Family",
+      "nameUr": "خان خاندان",
+      "rootId": "karim-khan",
+      "focusId": "karim-khan",
+      "people": [
+        {
+          "id": "karim-khan",
+          "name": "Karim Khan",
+          "nameUr": "کریم خان",
+          "gender": "m",
+          "birth": "1948",
+          "fatherId": null,
+          "motherId": null,
+          "spouseIds": ["ayesha-khan"],
+          "notes": "Free text."
+        }
+      ]
     }
   ]
 }
 ```
 
-Only `id` and `name` are required; anything missing is filled in with a blank.
-Dates are free text, so `1987`, `c. 570 CE` and `11 AH / 632 CE` are all fine —
-nothing tries to parse them.
+Only `id` and `name` are required on a person. Dates are free text on purpose —
+`1952`, `c. 570 CE` and `11 AH / 632 CE` all work, and nothing tries to parse
+them.
 
-On import the file is repaired rather than rejected: references to people who
-are not in the file get dropped, marriages are made to point both ways, and any
-parent link that would make someone their own ancestor is removed.
+Imports are repaired rather than rejected: references to people who are not in
+the file are dropped, marriages are made to point both ways, duplicate ids are
+renamed, and any parent link that would make someone their own ancestor is
+removed.
 
-### Starting your own family from scratch
+## The bundled example
 
-Easiest route: open the app, `Reset to sample lineage` if needed, then delete
-people and add your own. Or write a JSON file in the shape above and import it.
-
-To change what the app ships with, edit `js/seed.js` and set `meta.rootId` to
-whoever the tree should start from.
-
-## About the sample lineage
+"See an example" loads the lineage of Prophet Muhammad ﷺ — 85 people from
+ʿAdnan down to the beginnings of the sayyid and sharif houses. It sits alongside
+your own families and can be removed like any other.
 
 The ascending chain from the Prophet ﷺ to ʿAdnan — 21 forefathers — is the
-portion the classical biographers agree on. Ibn Ishaq (through Ibn Hisham's
+portion the classical biographers agree on; Ibn Ishaq (through Ibn Hisham's
 *Sira*), Ibn Saʿd's *Tabaqat* and al-Tabari's *Tarikh* all transmit it
-identically, and the `Lineage` view shows it in full.
+identically. Ancestry **above** ʿAdnan, up to Ismaʿil ibn Ibrahim, is disputed
+and is deliberately left out — Ibn Ishaq himself stops there. Where the sources
+disagree with each other (Shahrbanu's identity, whether Maria al-Qibtiyya is
+counted among the wives), the note on that person says so.
 
-Ancestry **above** ʿAdnan, up to Ismaʿil ibn Ibrahim, is disputed and is
-deliberately not included — Ibn Ishaq himself stops there. Descendants are
-carried a few generations past al-Hasan and al-Husayn, far enough to show where
-the sayyid and sharif houses begin, and no further.
+Names carry an Urdu spelling alongside the Latin one, and titles are given in
+both languages. The longer historical notes are in English only.
 
-Dates are approximate: pre-Hijra figures are given CE only, later ones AH/CE,
-and `c.` marks anything the sources do not fix precisely. Where the sources
-themselves disagree — Shahrbanu's identity, whether Maria al-Qibtiyya is counted
-among the wives — the note on that person says so.
+Dates are approximate: pre-Hijra figures CE only, later ones AH/CE, and `c.`
+marks anything the sources do not fix precisely.
 
-## How the tree is drawn
+## How the chart is drawn
 
 Solid lines follow the paternal line. Each person appears exactly once, under
-their father where the father is in the tree and under their mother otherwise,
-which is what keeps a grandchild like Umama attached through Zaynab when her
+their father where the father is in the chart and under their mother otherwise
+— which is what keeps a grandchild attached through their mother when the
 father married in from outside the family.
 
-Dashed lines mark the *other* parent where both parents are in the tree — so
-al-Hasan hangs under ʿAli by a solid line and is joined to Fatima by a dashed
-one. Turn them off with the `Maternal links` checkbox.
+Dashed lines mark the *other* parent where both are in the chart. Spouses are
+not given cards of their own; they are listed on their partner's card and have
+full entries everywhere else. That is why the example draws 46 cards for 85
+people.
 
-Spouses are not given cards of their own; they are listed on their partner's
-card and get full entries in the `People` view and the detail panel. That is why
-the sample tree draws 46 cards out of 85 people when it starts at
-ʿAbd al-Muttalib.
-
-## Files
+## Layout of the code
 
 ```
-index.html        markup for all three views, the detail panel and the dialogs
-css/app.css       one stylesheet; light and dark themes, print rules
-js/seed.js        the shipped dataset
-js/store.js       people, relationships, undo, local storage, import/export
-js/layout.js      works out the tree's shape and positions
-js/app.js         views, canvas, forms, files
+app/
+  layout.tsx            fonts, providers, document shell
+  page.tsx              home - the list of families
+  settings/page.tsx     language, text size, backup
+  tree/[id]/page.tsx    one family, and the three views
+  globals.css           theme tokens, type scale, RTL-safe base styles
+components/
+  LocaleShell.tsx       puts language and text size onto <html>
+  Header.tsx            header bar and the language switch
+  FamilyView.tsx        the default one-person-at-a-time view
+  ChartView.tsx         the pan/zoom chart
+  ListView.tsx          searchable list
+  PersonSheet.tsx       one person: details and every action
+  PersonForm.tsx        add and edit
+  ui.tsx                buttons, fields, sheet, confirm, avatar
+  Toast.tsx             one message at a time, with an undo action
+lib/
+  types.ts              Person, Tree, Settings
+  family.ts             relationship rules, repair, attach
+  layout.ts             chart shape and positioning
+  store.tsx             state, device storage, undo, import/export
+  seed.ts               the bundled example
 ```
 
-No dependencies, no build, no package.json.
+`lib/family.ts` and `lib/layout.ts` are plain functions with no React in them,
+so the rules about how relatives hang together can be reasoned about — and
+tested — on their own.
 
 ## Known limits
 
-- `Print / save as PDF` is reliable for the Lineage and People views. The tree
-  canvas is pan-and-zoom, so printing it captures the current view rather than
-  paginating the whole chart — export and use a dedicated tool for a wall chart.
-- One dataset at a time. To keep several families, export each to its own JSON
-  file and import the one you want.
-- Marriage records hold who, not when — there are no marriage or divorce dates.
+- One device. No sync; the backup file is the way to move between devices.
+- Marriage records hold who, not when — no marriage or divorce dates.
+- No photos yet; people are shown as a coloured initial.
+- The chart prints as whatever is currently on screen rather than paginating a
+  wall chart.
