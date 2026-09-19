@@ -55,6 +55,7 @@ export function PersonSheet({
       <Sheet
         open
         title={displayName(person, settings.locale)}
+        closeLabel={s.close}
         onClose={onClose}
         footer={
           <>

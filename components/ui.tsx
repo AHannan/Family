@@ -5,7 +5,7 @@ import {
   useEffect,
   useId,
   useRef,
-  type ButtonHTMLAttributes,
+  type ComponentPropsWithRef,
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
@@ -30,7 +30,7 @@ export function Button({
   className = '',
   children,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; full?: boolean }) {
+}: ComponentPropsWithRef<'button'> & { variant?: Variant; full?: boolean }) {
   return (
     <button
       {...rest}
@@ -185,32 +185,48 @@ export function Segmented<T extends string>({
 export function Sheet({
   open,
   title,
+  closeLabel = 'Close',
   onClose,
   children,
   footer,
 }: {
   open: boolean;
   title: string;
+  closeLabel?: string;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
 }) {
-  const panel = useRef<HTMLDivElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+
+  // Callers pass a fresh arrow for onClose on every render, so it cannot be an
+  // effect dependency: the effect would tear down and set up again on every
+  // keystroke, and the focus line below would yank the caret out of the field
+  // and onto the close button. Keep the latest one in a ref instead.
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') close.current();
     };
     document.addEventListener('keydown', onKey);
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    panel.current?.querySelector<HTMLElement>('input, select, textarea, button')?.focus();
+    // Start in the form, not on the close button - only the content counts as a
+    // landing spot, and we fall back to the close button for dialogs that are
+    // just a sentence of text.
+    const first = body.current?.querySelector<HTMLElement>('input, select, textarea, button');
+    (first ?? closeButton.current)?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = previous;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -222,7 +238,6 @@ export function Sheet({
       }}
     >
       <div
-        ref={panel}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -230,11 +245,13 @@ export function Sheet({
       >
         <div className="flex items-center justify-between gap-4 border-b-2 border-line-soft px-5 py-4">
           <h2 className="text-2xl font-bold">{title}</h2>
-          <Button variant="quiet" onClick={onClose} aria-label={title} className="px-3">
+          <Button ref={closeButton} variant="quiet" onClick={onClose} aria-label={closeLabel} className="px-3">
             ✕
           </Button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
+        <div ref={body} className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+          {children}
+        </div>
         {footer && (
           <div className="flex flex-wrap justify-end gap-3 border-t-2 border-line-soft px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {footer}
@@ -267,6 +284,7 @@ export function Confirm({
     <Sheet
       open={open}
       title={title}
+      closeLabel={cancelLabel}
       onClose={onCancel}
       footer={
         <>

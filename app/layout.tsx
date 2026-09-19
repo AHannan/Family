@@ -36,7 +36,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // language is known; these are the sensible pre-hydration defaults.
   return (
     <html lang="en" dir="ltr" className={`${ui.variable} ${urdu.variable}`}>
-      <body className="antialiased">
+      {/* Browser extensions commonly add attributes to <body> before React
+          hydrates (e.g. style="isolation:isolate"), which React reports as a
+          mismatch. Nothing here renders a body style, so the warning is noise. */}
+      <body className="antialiased" suppressHydrationWarning>
         <AppProvider>
           <ToastProvider>
             <LocaleShell>{children}</LocaleShell>

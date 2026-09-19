@@ -134,6 +134,7 @@ export function PersonForm({
     <Sheet
       open
       title={titleText}
+      closeLabel={s.close}
       onClose={onClose}
       footer={
         <>

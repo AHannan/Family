@@ -146,6 +146,7 @@ export default function HomePage() {
       <Sheet
         open={creating}
         title={s.newFamilyTitle}
+        closeLabel={s.close}
         onClose={() => setCreating(false)}
         footer={
           <>
@@ -176,6 +177,7 @@ export default function HomePage() {
       <Sheet
         open={!!renaming}
         title={s.renameFamily}
+        closeLabel={s.close}
         onClose={() => setRenaming(null)}
         footer={
           <>

@@ -1,0 +1,76 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```sh
+npm install
+npm run dev      # dev server on http://localhost:3000
+npm run build    # production build (also the only type-check: tsconfig has noEmit)
+npm start        # serve the production build
+npm run lint     # eslint (flat config, eslint-config-next core-web-vitals + typescript)
+```
+
+There is no test runner or test directory. `lib/family.ts` and `lib/layout.ts` are deliberately React-free so they *could* be tested, but nothing is wired up — adding a test means bringing the runner too.
+
+Next.js 16 / React 19 / Tailwind v4 / TypeScript strict. Import alias `@/*` → repo root. Tailwind has no config file; design tokens live in the `@theme` block of [app/globals.css](app/globals.css).
+
+## Architecture
+
+**Everything is client-side.** No API routes, no database, no auth. The whole app state is one `AppData` object (`{version, trees[], settings}`) held in a React context and mirrored to `localStorage` under `family-tree-app/v1`. Pages under [app/](app/) are `'use client'`; the only server component is [app/layout.tsx](app/layout.tsx), which just loads fonts and mounts the providers.
+
+Provider order, set in [app/layout.tsx](app/layout.tsx): `AppProvider` → `ToastProvider` → `LocaleShell`. `LocaleShell` renders a spinner until the store has read localStorage, which is what prevents an English/LTR flash for an Urdu user — don't render app chrome above it.
+
+### The store is the only way to mutate ([lib/store.tsx](lib/store.tsx))
+
+Every write goes through the internal `mutate(fn, recordUndo = true)`, which pushes a JSON snapshot of the previous state onto an undo stack (cap 40) and deep-clones before applying. Two rules follow:
+
+- **Never mutate `tree.people` outside the store.** State is structurally shared through `JSON.parse(JSON.stringify(...))`; in-place edits elsewhere break undo.
+- **Pass `recordUndo = false` for anything that isn't content.** `setTreeField` (rootId/focusId — i.e. navigation) and the settings setters already do. Putting a view change on the undo stack makes Undo feel broken.
+
+Invariants the store maintains, which new code must not skip:
+
+- `repair()` from [lib/family.ts](lib/family.ts) runs after every people-list change. It dedupes ids, drops dangling parent/spouse references, makes marriages symmetric, and breaks ancestry cycles. Imported and hand-edited files are repaired, never rejected — `coerce()` applies the same treatment to anything read from a file or from storage.
+- `liftRoot()` walks `tree.rootId` up to the oldest recorded ancestor after each add, so adding a grandfather re-roots the chart on him. The chart only draws downwards; this is why nobody has to find the "Start from" control.
+- `importFile` **merges** by tree id rather than replacing — a restore must not wipe trees built since the backup.
+
+### Relationship rules ([lib/family.ts](lib/family.ts))
+
+`attach(people, added, kind, toId)` encodes the "Add son" / "Add wife" / "Add father" semantics: it infers the second parent when the anchor has exactly one spouse, presumes a newly added father is the husband of a known mother, and copies both parent links for a brother or sister. This is why the add form asks only for a name — the relationship is already known. New relationship kinds go in `RelationKind` + `RELATION_GENDER` + the `attach` switch together.
+
+### Chart layout is two-phase ([lib/layout.ts](lib/layout.ts), [components/ChartView.tsx](components/ChartView.tsx))
+
+1. `buildTree(people, rootId, collapsed)` decides structure: each person appears exactly once, under their father when the father is in the chart and under their mother otherwise (that fallback is what keeps grandchildren attached when a father married in from outside).
+2. ChartView renders cards off-screen, measures their real `offsetHeight`, then calls `positionTree(built, heights, collapsed)` for coordinates.
+
+Card width is fixed (`CARD_W`), which is the assumption that keeps positioning collision-free — a parent centred over its children can't be wider than their span. Variable-width cards would require a real tree-layout algorithm. Spouses get no card of their own; they're listed on the partner's card, which is why 85 people draw 46 cards in the sample.
+
+### Bilingual + RTL ([lib/i18n.ts](lib/i18n.ts))
+
+`t(locale)` returns the whole string table; `displayName`/`altName` pick which of a person's two names is primary. `LocaleShell` sets `lang`, `dir` and `--text-scale` on `<html>` from the saved settings.
+
+- **`t()` casts to `Strings`, so a key missing from the `ur` table is not a type error** — it silently returns `undefined` at runtime. Add every new string to both tables.
+- Layout flips by `dir` alone: use logical CSS properties (`padding-inline`, `inset-inline`, `ms-*`/`me-*`) and never `left`/`right`.
+- Urdu is set in Noto Nastaliq via `:lang(ur)` rules in globals.css with much larger leading. Don't set `font-family` or tight `line-height` on text that may be Urdu.
+
+### Constraints from the intended user
+
+This app is built for a non-technical, possibly elderly user reading English or Urdu, and most of the design follows from that. Preserve these when touching UI:
+
+- The **Family view** (one person, parents above, spouse beside, children below) is the default, not the chart. Tapping a relative walks to them.
+- Empty relationships render as labelled `+ Add mother` buttons in the slot, not as blank space.
+- Nothing is icon-only; every control carries words. Minimum tap target 3rem via the `tap` utility in globals.css.
+- Everything sizes in `rem` off `--text-scale`, so the Settings text-size control scales the whole interface. Avoid `px`.
+- Destructive actions confirm in plain language, say what happens to everyone else, and surface an Undo action in the toast (`useToast` from [components/Toast.tsx](components/Toast.tsx)).
+- Adding a relative keeps the user where they are, so several children can be entered in a row.
+
+### Data shapes ([lib/types.ts](lib/types.ts))
+
+`normalizePerson()` fills in every optional field, so views never guard for `undefined`. Dates (`birth`/`death`) are free text on purpose — `1952`, `c. 570 CE` and `11 AH / 632 CE` all valid, nothing parses them; sibling order falls back to insertion order for that reason.
+
+The backup file format is the `AppData` JSON verbatim and is documented in [README.md](README.md); bumping `version` means teaching `coerce()` to read the old shape.
+
+### The sample tree ([lib/seed.ts](lib/seed.ts))
+
+1,276 lines of data: the lineage of Prophet Muhammad ﷺ, 85 people from ʿAdnan down. It carries `isSample: true`, a fixed id (`SAMPLE_TREE_ID`), and is otherwise an ordinary tree the user can edit or delete. It is historical content with cited sourcing in the file header — ancestry above ʿAdnan is deliberately omitted as disputed, and disagreements between sources are noted on the person. Don't extend or "fix" the genealogy without a source; treat it as data, not filler.
