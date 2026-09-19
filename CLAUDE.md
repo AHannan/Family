@@ -23,7 +23,7 @@ Next.js 16 / React 19 / Tailwind v4 / TypeScript strict. Import alias `@/*` → 
 
 ## Architecture
 
-**Local-first, with Supabase behind it.** Still no API routes and no server components doing data work: the browser talks to Supabase directly. The whole app state is one `AppData` object (`{version, trees[], settings}`) held in a React context and mirrored to `localStorage` under `family-tree-app/v1/<phone>`, and each changed tree is pushed to the `family_trees` table about a second later. Pages under [app/](app/) are `'use client'`; the only server component is [app/layout.tsx](app/layout.tsx), which just loads fonts and mounts the providers.
+**Local-first, with Supabase behind it.** The browser talks to Supabase directly for all family data; the only server-side code is `app/api/admin/*`, which exists solely because the admin panel needs the service role key (see below). The whole app state is one `AppData` object (`{version, trees[], settings}`) held in a React context and mirrored to `localStorage` under `family-tree-app/v1/<phone>`, and each changed tree is pushed to the `family_trees` table about a second later. Pages under [app/](app/) are `'use client'`; the only server component is [app/layout.tsx](app/layout.tsx), which just loads fonts and mounts the providers.
 
 localStorage is the working copy — it is what makes the app instant, offline-capable and undoable. Postgres is the durable copy. **Reads during normal use never go to the network**; only sign-in pulls.
 
@@ -63,6 +63,19 @@ Invariants the store maintains, which new code must not skip:
 - `repair()` from [lib/family.ts](lib/family.ts) runs after every people-list change. It dedupes ids, drops dangling parent/spouse references, makes marriages symmetric, and breaks ancestry cycles. Imported and hand-edited files are repaired, never rejected — `coerce()` applies the same treatment to anything read from a file or from storage.
 - `liftRoot()` walks `tree.rootId` up to the oldest recorded ancestor after each add, so adding a grandfather re-roots the chart on him. The chart only draws downwards; this is why nobody has to find the "Start from" control.
 - `importFile` **merges** by tree id rather than replacing — a restore must not wipe trees built since the backup. `mergeTrees` in [lib/cloud.ts](lib/cloud.ts) applies the same rule to syncing, for the same reason.
+
+### The admin panel ([lib/adminAuth.ts](lib/adminAuth.ts), `app/api/admin/`)
+
+The **only** server-side code in the project. It exists because creating and resetting other people's accounts needs the service role key, and that key bypasses RLS entirely.
+
+- **Never import [lib/adminAuth.ts](lib/adminAuth.ts) from a client component.** The missing `NEXT_PUBLIC_` prefix is a backstop, not the rule.
+- Every route handler calls `requireAdmin` **first**. It verifies the token with Supabase (not a local decode) and reads `is_admin` with the service key. Nothing from the request body, headers or cookies is trusted about identity.
+- `is_admin` has no `authenticated` UPDATE grant, so it can only be set from SQL or by another admin through the panel. Don't add a client-side path to it.
+- An admin cannot turn off, demote or delete themselves — otherwise the panel can lock out its last administrator.
+- The panel is **English only**, deliberately: it is an operator's tool, and routing it through `t()` would put a hundred strings into both tables for an audience of one.
+- `isAdmin` in the store only decides whether a link is drawn. It is not a security boundary.
+
+Routes are `runtime = 'nodejs'` and `dynamic = 'force-dynamic'`; a static export would silently drop them.
 
 ### Syncing ([lib/cloud.ts](lib/cloud.ts))
 

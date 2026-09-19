@@ -4,13 +4,13 @@ import { useRef } from 'react';
 import { Header } from '@/components/Header';
 import { SignOutButton } from '@/components/SignOutButton';
 import { useToast } from '@/components/Toast';
-import { Button, Segmented } from '@/components/ui';
+import { Button, LinkButton, Segmented } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { useApp } from '@/lib/store';
 import type { Locale } from '@/lib/types';
 
 export default function SettingsPage() {
-  const { settings, setLocale, setTextScale, exportBlob, importFile, trees, activeNumber } =
+  const { settings, setLocale, setTextScale, exportBlob, importFile, trees, activeNumber, isAdmin } =
     useApp();
   const s = t(settings.locale);
   const toast = useToast();
@@ -62,6 +62,17 @@ export default function SettingsPage() {
             <SignOutButton />
           </div>
         </Card>
+
+        {isAdmin && (
+          <Card title="Accounts">
+            <p className="mb-4 text-lg text-ink-soft">
+              Add people, issue passwords, and turn accounts on or off.
+            </p>
+            <LinkButton href="/admin" variant="secondary">
+              Manage accounts
+            </LinkButton>
+          </Card>
+        )}
 
         <Card title={s.language}>
           <Segmented<Locale>

@@ -163,6 +163,9 @@ interface Ctx {
   activeNumber: string | null;
   /** The Supabase user id, or null in local-only mode. */
   userId: string | null;
+  /** Whether to offer the admin panel. Only decides whether a link is drawn -
+   *  every /api/admin route re-checks this server side with the service key. */
+  isAdmin: boolean;
   /** Every number used on this device, most recently used first. */
   accounts: Account[];
   /** Whether there is a cloud to sync with at all. Wording depends on it. */
@@ -216,6 +219,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [activeNumber, setActiveNumber] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [syncState, setSyncState] = useState<SyncState>(cloudConfigured() ? 'idle' : 'off');
   /* The language and text size the *device* last used. The sign-in screen has
      no families to read them from, and someone who reads Urdu must not be
@@ -346,6 +350,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUserId(user.id);
         setAccounts((prev) => sortAccounts(touchAccount(prev, phone)));
         setReady(true);
+
+        try {
+          const account = await fetchAccount(client, user.id);
+          if (!cancelled && account) {
+            setIsAdmin(account.isAdmin);
+            setDeviceSettings(account.settings);
+            setData((prev) => ({ ...prev, settings: account.settings }));
+          }
+        } catch {
+          // Unreachable roster: stay signed in with what the device knows, and
+          // simply do not offer the admin panel.
+        }
+
         await firstSync(user.id, local.trees);
       })
       .catch(() => {
@@ -541,6 +558,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cloudSeen.current = new Map();
       setActiveNumber(phone);
       setUserId(user.id);
+      setIsAdmin(!!account?.isAdmin);
       await firstSync(user.id, next.trees);
       return null;
     },
@@ -562,6 +580,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     cloudSeen.current = new Map();
     setCanUndo(false);
     setUserId(null);
+    setIsAdmin(false);
     setActiveNumber(null);
     setSyncState(cloudConfigured() ? 'idle' : 'off');
     setData({ ...emptyData(), settings: { ...deviceSettings } });
@@ -854,6 +873,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ready,
       activeNumber,
       userId,
+      isAdmin,
       accounts,
       cloudOn: cloudConfigured(),
       syncState,
@@ -884,7 +904,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       importFile,
     }),
     [
-      ready, activeNumber, userId, accounts, syncState, signIn, signOut, forgetAccount,
+      ready, activeNumber, userId, isAdmin, accounts, syncState, signIn, signOut, forgetAccount,
       deviceSettings, data, getTree, setLocale, setTextScale, createTree, addSampleTree,
       renameTree, deleteTree, setTreeField, setTreePublic, addPerson, updatePerson,
       reorderChildren, deletePerson,

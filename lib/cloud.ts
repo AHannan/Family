@@ -192,6 +192,9 @@ export interface AccountRow {
   phone: string;
   displayName: string;
   isActive: boolean;
+  /** Whether to offer the admin panel. The panel itself re-checks server side;
+   *  this only decides whether a link is drawn. */
+  isAdmin: boolean;
   settings: Settings;
 }
 
@@ -209,7 +212,7 @@ export async function fetchAccount(
 ): Promise<AccountRow | null> {
   const { data, error } = await client
     .from('family_accounts')
-    .select('phone, display_name, is_active, settings')
+    .select('phone, display_name, is_active, is_admin, settings')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw error;
@@ -218,6 +221,7 @@ export async function fetchAccount(
     phone: string;
     display_name: string | null;
     is_active: boolean;
+    is_admin: boolean;
     settings: unknown;
   };
   const s = (row.settings ?? {}) as Partial<Settings>;
@@ -225,6 +229,7 @@ export async function fetchAccount(
     phone: row.phone,
     displayName: row.display_name || '',
     isActive: row.is_active,
+    isAdmin: !!row.is_admin,
     settings: {
       locale: s.locale === 'ur' ? 'ur' : 'en',
       textScale: [1, 1.15, 1.3].includes(Number(s.textScale)) ? Number(s.textScale) : 1,

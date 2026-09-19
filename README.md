@@ -36,6 +36,8 @@ purpose, so a bad connection never locks anybody out of their own tree.
 There is no sign-up screen, no OTP and no SMS provider. An account exists because
 you made one:
 
+Either from the admin panel in the app, or from the command line:
+
 ```sh
 npm run invite -- +923001234567 "Nani Amma"     # create, print link + password
 npm run invite -- +923001234567 --reset         # send them a new password
@@ -137,6 +139,64 @@ so a family with relatives who read only one of the two scripts still works.
 The language switch sits in the header on every screen rather than inside
 Settings, and each option is written in its own script — someone who opens the
 app in a language they cannot read is still one tap from fixing it.
+
+## The admin panel
+
+`/admin`, linked from Settings for accounts with `is_admin` set. It does what
+the invite script does, plus a roster: add people, issue new passwords, turn
+accounts off, grant or remove admin, and delete an account with its families.
+
+A password is shown **once**, when it is created. Nothing stores it afterwards -
+if it is lost, issue a new one.
+
+The panel is English only. Everything else in the app is bilingual, but this is
+an operator's tool used by whoever runs the app, not by the families.
+
+### How it is kept safe
+
+This is the only server-side code in the project, and it exists because creating
+and resetting other people's accounts needs the service role key - which
+bypasses row level security and must never reach a browser.
+
+- The key is read in [lib/adminAuth.ts](lib/adminAuth.ts), imported only by the
+  route handlers under `app/api/admin/`. It has no `NEXT_PUBLIC_` prefix, so
+  Next.js will not inline it into the client bundle.
+- Every route calls `requireAdmin` first. That **verifies the caller's token
+  with Supabase** rather than decoding it, then reads `is_admin` from the
+  database with the service key. Nothing the browser claims about who it is -
+  body, header or cookie - is believed.
+- A switched-off account is refused even if its session predates the switch.
+- `isAdmin` in the client store only decides whether a link is drawn. Reaching
+  `/admin` without the flag shows a polite refusal, and the API refuses anyway.
+
+Verified against the running app: no token, a garbage token and the publishable
+key all get `401`; a real but non-admin session gets `403` on every route; and
+neither `service_role` nor the key itself appears anywhere in `.next/static`.
+
+## Deploying to Vercel
+
+Import the repo, then set four environment variables in
+**Project Settings > Environment Variables**:
+
+| Variable | Value | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` | Safe in the browser |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` | Safe in the browser |
+| `NEXT_PUBLIC_SITE_URL` | `https://your-app.vercel.app` | **Must be the real domain** - invite links are built from it |
+| `SUPABASE_SERVICE_ROLE_KEY` | the secret key | Mark **Sensitive**. No `NEXT_PUBLIC_` prefix, ever |
+
+Then, in the Supabase dashboard:
+
+- **Authentication > URL Configuration**: add the Vercel domain to the redirect
+  allow list.
+- **Authentication > Sign In / Providers**: turn **off** "Allow new users to
+  sign up". Accounts are created by you; the sign-in address is derived from a
+  phone number, so leaving signups open would let somebody register a derived
+  address before you invite its owner.
+
+The app is no longer fully static - `/api/admin/*` and the dynamic routes run as
+Node functions - so it needs a Node runtime. Vercel's default gives you that;
+a static export (`output: 'export'`) would silently drop the admin panel.
 
 ## Where your data lives
 
