@@ -73,7 +73,7 @@ One row per tree, with `people` stored as one jsonb document rather than normali
 1. `buildTree(people, rootId, collapsed)` decides structure: each person appears exactly once, under their father when the father is in the chart and under their mother otherwise (that fallback is what keeps grandchildren attached when a father married in from outside).
 2. ChartView renders cards off-screen, measures their real `offsetHeight`, then calls `positionTree(built, heights, collapsed)` for coordinates.
 
-Card width is fixed (`CARD_W`), which is the assumption that keeps positioning collision-free — a parent centred over its children can't be wider than their span. Variable-width cards would require a real tree-layout algorithm. Spouses get no card of their own; they're listed on the partner's card, which is why 85 people draw 46 cards in the sample.
+Card width is fixed (`CARD_W`), which is the assumption that keeps positioning collision-free — a parent centred over its children can't be wider than their span. Variable-width cards would require a real tree-layout algorithm. Spouses get no card of their own; they're listed on the partner's card, which is why 33 people draw 22 cards in the sample.
 
 ### Bilingual + RTL ([lib/i18n.ts](lib/i18n.ts))
 
@@ -106,4 +106,8 @@ The backup file format is the `AppData` JSON verbatim and is documented in [READ
 
 ### The sample tree ([lib/seed.ts](lib/seed.ts))
 
-1,276 lines of data: the lineage of Prophet Muhammad ﷺ, 85 people from ʿAdnan down. It carries `isSample: true`, a fixed id (`SAMPLE_TREE_ID`), and is otherwise an ordinary tree the user can edit or delete. It is historical content with cited sourcing in the file header — ancestry above ʿAdnan is deliberately omitted as disputed, and disagreements between sources are noted on the person. Don't extend or "fix" the genealogy without a source; treat it as data, not filler.
+**The Malik Family** — an invented Punjabi family, 33 people over five generations, carrying `isSample: true` and a fixed id (`SAMPLE_TREE_ID`). Otherwise an ordinary tree the user can edit or delete.
+
+It is deliberately fictional filler and may be changed freely — but it is *shaped* to cover the awkward paths, so check the file header before trimming it. It deliberately includes a man with two wives (the spouse list on a card), a son-in-law with no recorded parents (the `buildTree` under-the-mother fallback), somebody unmarried and somebody childless (empty `+ Add ...` slots), and dates in several formats. Removing those cases removes the only coverage they have.
+
+Earlier versions shipped the lineage of Prophet Muhammad ﷺ as the sample; it was removed deliberately, so don't reinstate it.

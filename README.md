@@ -191,23 +191,26 @@ removed.
 
 ## The bundled example
 
-"See an example" loads the lineage of Prophet Muhammad ﷺ — 85 people from
-ʿAdnan down to the beginnings of the sayyid and sharif houses. It sits alongside
-your own families and can be removed like any other.
+"See an example" loads **The Malik Family** — an invented Punjabi family, 33
+people across five generations. Nobody in it is real. It sits alongside your own
+families and can be edited or removed like any other.
 
-The ascending chain from the Prophet ﷺ to ʿAdnan — 21 forefathers — is the
-portion the classical biographers agree on; Ibn Ishaq (through Ibn Hisham's
-*Sira*), Ibn Saʿd's *Tabaqat* and al-Tabari's *Tarikh* all transmit it
-identically. Ancestry **above** ʿAdnan, up to Ismaʿil ibn Ibrahim, is disputed
-and is deliberately left out — Ibn Ishaq himself stops there. Where the sources
-disagree with each other (Shahrbanu's identity, whether Maria al-Qibtiyya is
-counted among the wives), the note on that person says so.
+It is filler, and it is meant to be: its only job is to give somebody opening the
+app for the first time something to tap around in. Change it freely.
+
+It is shaped to exercise the interface rather than to be large:
+
+- five generations, so "Whole tree" has something to scroll
+- one man with two wives, so the spouse list on a card is not hypothetical
+- a son-in-law who married in with no recorded parents, so his children hang
+  under their mother — the layout fallback described below
+- somebody who never married and somebody with no children, so the empty
+  `+ Add ...` slots are visible
+- dates written several different ways, because they are free text and nothing
+  parses them
 
 Names carry an Urdu spelling alongside the Latin one, and titles are given in
-both languages. The longer historical notes are in English only.
-
-Dates are approximate: pre-Hijra figures CE only, later ones AH/CE, and `c.`
-marks anything the sources do not fix precisely.
+both languages. The few notes are in English.
 
 ## How the chart is drawn
 
@@ -218,7 +221,7 @@ father married in from outside the family.
 
 Dashed lines mark the *other* parent where both are in the chart. Spouses are
 not given cards of their own; they are listed on their partner's card and have
-full entries everywhere else. That is why the example draws 46 cards for 85
+full entries everywhere else. That is why the example draws 22 cards for 33
 people.
 
 ## Layout of the code

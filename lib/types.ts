@@ -9,7 +9,7 @@ export interface Person {
   name: string;
   /** Name in Urdu / Arabic script. Optional. */
   nameUr?: string;
-  /** Role or honorific, e.g. "Chief of Quraysh", "Nana Abu". */
+  /** Role or honorific, e.g. "Schoolteacher", "Nana Abu". */
   title?: string;
   titleUr?: string;
   gender: Gender;
