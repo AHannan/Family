@@ -11,8 +11,15 @@
  * number, this script creates their account with a password, and you send them
  * the link and the password yourself - WhatsApp, a text, or on paper.
  *
- * That is why no SMS costs anything here. Supabase never sends the person a
- * message; the password reaches them through you.
+ * That is why nothing costs anything here per user. Supabase never sends the
+ * person a message of any kind; the password reaches them through you.
+ *
+ * The account is created against Supabase's *email* provider, under an address
+ * derived from the number (`923001234567@phone.invalid`), because the phone
+ * provider cannot be enabled without paying for an SMS sender we would never
+ * use. `email_confirm: true` means no mail is ever sent. The full reasoning is
+ * in lib/accounts.ts above `authEmailFor` - that is the source of truth, and the
+ * two must agree or nobody will be able to sign in.
  *
  * It needs the service role key, which bypasses row level security, so it is a
  * local script and its key must never reach the browser bundle. Put it in
@@ -81,10 +88,17 @@ const phone = '+' + rawPhone.replace(/\D/g, '');
 if (!/^\+[1-9]\d{6,14}$/.test(phone)) {
   console.error(
     `"${rawPhone}" is not a full international number.\n` +
-      'Include the country code, for example +923001234567.',
+      'Include the country code, for example +923001234567.\n' +
+      'A Pakistani number drops its leading 0: 0343 232 4575 -> +923432324575.',
   );
   process.exit(1);
 }
+
+/* Must match `authEmailFor` in lib/accounts.ts. Duplicated rather than imported
+   because this script runs under plain node with no TypeScript build step; it is
+   two lines, and lib/accounts.ts carries the explanation. */
+const AUTH_EMAIL_DOMAIN = 'phone.invalid';
+const authEmail = `${phone.replace(/\D/g, '')}@${AUTH_EMAIL_DOMAIN}`;
 
 /**
  * A password that can be read down a phone line.
@@ -114,14 +128,14 @@ const admin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-/** Find an existing auth user with this number, if there is one. */
+/** Find an existing auth user for this number, if there is one. */
 async function findUser() {
-  // There is no "get user by phone", so page through. A roster this size never
+  // There is no "get user by email", so page through. A roster this size never
   // reaches more than a page or two.
   for (let page = 1; page <= 20; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
     if (error) throw error;
-    const hit = data.users.find((u) => u.phone && `+${u.phone}` === phone);
+    const hit = data.users.find((u) => u.email === authEmail);
     if (hit) return hit;
     if (data.users.length < 200) return null;
   }
@@ -147,12 +161,16 @@ async function main() {
     userId = existing.id;
     console.log(`Reset the password for ${phone}.`);
   } else {
-    // `phone_confirm` is what makes this work with no SMS provider at all: the
-    // number is marked confirmed because you confirmed it, by talking to them.
+    // `email_confirm` is what makes this work with nothing configured at all:
+    // the address counts as confirmed because you confirmed the person, by
+    // talking to them. No mail is sent, and the address cannot receive any.
+    // The number goes into user_metadata too, so the dashboard's user list is
+    // readable by a human rather than a column of digits@phone.invalid.
     const { data, error } = await admin.auth.admin.createUser({
-      phone,
+      email: authEmail,
       password,
-      phone_confirm: true,
+      email_confirm: true,
+      user_metadata: { phone, ...(displayName ? { display_name: displayName } : {}) },
     });
     if (error) throw error;
     userId = data.user.id;

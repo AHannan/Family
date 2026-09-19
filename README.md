@@ -46,9 +46,26 @@ or read down the phone. The link carries the number, so the person only has to
 type the password. Passwords are generated in three short groups with no
 lookalike characters, because they get dictated to people.
 
-This works with no messaging provider because `phone_confirm` marks the number
-confirmed on the grounds that *you* confirmed it, by talking to them. Supabase
-never sends the person anything.
+### Why the account is an email address underneath
+
+Supabase Auth is used through its **email** provider, under an address derived
+from the number: `+923001234567` becomes `923001234567@phone.invalid`.
+
+The obvious choice would be the phone provider, but enabling it requires wiring
+up an SMS sender (Twilio and friends) with real credentials and a real bill - to
+satisfy a delivery mechanism this app never uses, since you hand the password
+over yourself. The email provider needs no configuration and is on by default,
+and `email_confirm: true` means nothing is ever sent to these addresses either.
+`.invalid` is reserved by RFC 2606 so it can never resolve or reach anybody real.
+
+**The user never sees this.** The sign-in screen asks for a phone number, and the
+number is what the app and `family_accounts` show throughout. The mapping lives in
+`authEmailFor` / `phoneFromAuthEmail` in [lib/accounts.ts](lib/accounts.ts), and
+`scripts/invite.mjs` repeats it - the two must agree or nobody can sign in.
+
+Because that address is derived from a public phone number, **turn off "Allow new
+users to sign up"** in the dashboard. Left on, somebody could register a derived
+address before you invite its owner.
 
 `scripts/invite.mjs` needs `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. That key
 bypasses row level security; it has no `NEXT_PUBLIC_` prefix, so Next.js never

@@ -58,15 +58,62 @@ export function isValidPhone(normalized: string): boolean {
 }
 
 /**
- * Whether a number is in full international form, which Supabase requires.
+ * Whether a number is in full international form.
  *
  * Checked rather than fixed, on purpose. `normalizePhone` refuses to guess a
  * country code because guessing wrong would aim somebody at a stranger's
  * account; the same reasoning applies here, so a number without one is sent
  * back to the user to complete. The link the owner sends already carries it.
+ *
+ * This is also what makes `authEmailFor` safe: the mapping is only reversible
+ * because the number it is given is already canonical.
  */
 export function isE164(normalized: string): boolean {
   return /^\+[1-9]\d{6,14}$/.test(normalized);
+}
+
+/* ---- the number as Supabase sees it ------------------------------------
+ *
+ * Supabase Auth is used through its *email* provider, with an address derived
+ * from the phone number. That needs explaining, because it looks like a hack:
+ *
+ * The obvious choice is the phone provider, but enabling it requires wiring up
+ * an SMS provider (Twilio and friends) with real credentials and a real bill -
+ * and this app never sends a message. Accounts are created by the owner, who
+ * hands the password over in person or on WhatsApp. So the phone provider would
+ * cost money to satisfy a delivery mechanism nobody uses.
+ *
+ * The email provider needs no configuration at all and is on by default. Nothing
+ * is ever sent to these addresses either: `invite.mjs` creates users with
+ * `email_confirm: true`, and the app only ever calls `signInWithPassword`.
+ *
+ * `.invalid` is reserved by RFC 2606 precisely so that it can never resolve, so
+ * these addresses cannot collide with, or accidentally reach, anybody real.
+ *
+ * The user never sees any of this: the sign-in screen asks for a phone number,
+ * and the number is what `family_accounts` and the UI show throughout.
+ */
+
+export const AUTH_EMAIL_DOMAIN = 'phone.invalid';
+
+/** `+923001234567` -> `923001234567@phone.invalid`. Expects an E.164 number. */
+export function authEmailFor(normalizedPhone: string): string {
+  return `${normalizedPhone.replace(/\D/g, '')}@${AUTH_EMAIL_DOMAIN}`;
+}
+
+/**
+ * The number back out of the address, or '' if it is not one of ours.
+ *
+ * Used when restoring a session: the address is the only place the number is
+ * guaranteed to be, since a roster row is optional.
+ */
+export function phoneFromAuthEmail(email: string | null | undefined): string {
+  const at = `@${AUTH_EMAIL_DOMAIN}`;
+  if (!email || !email.endsWith(at)) return '';
+  const digits = email.slice(0, -at.length);
+  if (!/^\d+$/.test(digits)) return '';
+  const phone = `+${digits}`;
+  return isE164(phone) ? phone : '';
 }
 
 export function dataKeyFor(phone: string): string {

@@ -33,7 +33,14 @@ Provider order, set in [app/layout.tsx](app/layout.tsx): `AppProvider` → `Toas
 
 ### The number is a credential now, but nobody signs themselves up ([lib/accounts.ts](lib/accounts.ts), [scripts/invite.mjs](scripts/invite.mjs))
 
-Phone + password through Supabase Auth. **There is deliberately no signup path, no OTP and no SMS provider**: the owner runs `scripts/invite.mjs`, which creates the user with `phone_confirm: true` and prints a link and a password to pass on by hand. `phone_confirm` is the whole trick — the number counts as confirmed because a human confirmed it, so nothing is ever sent and no messaging provider is needed. Don't add a "create account" button or reach for Twilio/SMTP without being asked; the SignIn screen explains the absence instead (`noAccountBody`).
+Phone + password through Supabase Auth. **There is deliberately no signup path, no OTP and no SMS provider**: the owner runs `scripts/invite.mjs`, which creates the user and prints a link and a password to pass on by hand. Don't add a "create account" button or reach for Twilio/SMTP without being asked; the SignIn screen explains the absence instead (`noAccountBody`).
+
+**The account is an email address underneath.** Auth goes through the *email* provider under an address derived from the number (`+923001234567` -> `923001234567@phone.invalid`), created with `email_confirm: true` so nothing is ever sent. The phone provider was the obvious choice and was rejected: it cannot be enabled without paying for an SMS sender this app would never use. The reasoning is written out above `authEmailFor` in [lib/accounts.ts](lib/accounts.ts) — read it before "simplifying" this back to `signInWithPassword({ phone })`, which fails with `phone_provider_disabled`.
+
+- `authEmailFor` / `phoneFromAuthEmail` are the mapping, and `scripts/invite.mjs` **duplicates it** (two lines, no TS build step there) — they must agree or nobody can sign in.
+- The mapping is only reversible because `isE164` has already made the number canonical. That is why sign-in refuses a number without a country code rather than guessing one.
+- Session restore reads the number back out of `user.email`, not `user.phone`, because a `family_accounts` row is optional. A session whose address is not ours is treated as signed out rather than guessed at.
+- **The user must never see the derived address.** It is an implementation detail; every screen shows the phone number.
 
 - `normalizePhone` keeps digits and a leading `+` only, so `0300 123-4567` and `03001234567` reach the same families. **A country code is never inferred**, and `isE164` enforces that at sign-in by *asking* rather than guessing: guessing wrong would aim somebody at a stranger's account. The invite link carries `?n=<phone>`, so the common path never types it.
 - The registry (`family-tree-app/accounts/v1`) holds the number list, who is open, and a copy of the settings. That copy exists because the sign-in screen has no `AppData` to read the language from — `setLocale`/`setTextScale` write both (and the roster row), so signing out doesn't flip an Urdu reader back to English.

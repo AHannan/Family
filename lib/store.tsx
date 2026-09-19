@@ -37,12 +37,14 @@ import {
   type RelationKind,
 } from './family';
 import {
+  authEmailFor,
   claimLegacyData,
   clearLegacyData,
   dataKeyFor,
   isE164,
   isValidPhone,
   normalizePhone,
+  phoneFromAuthEmail,
   readDataFor,
   readRegistry,
   sortAccounts,
@@ -329,9 +331,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setReady(true);
           return;
         }
-        // gotrue stores the number without its leading `+`; put it back so the
-        // storage key matches what `normalizePhone` produces at sign-in.
-        const phone = normalizePhone(user.phone ? `+${user.phone}` : '');
+        // The number lives in the derived auth address, which is the only place
+        // it is guaranteed to be - a roster row is optional. A session whose
+        // address is not one of ours is not something this app can place, so
+        // treat it as signed out rather than guessing a number for it.
+        const phone = phoneFromAuthEmail(user.email);
+        if (!phone) {
+          setReady(true);
+          return;
+        }
         const local = localFor(phone) ?? { ...emptyData(), settings: { ...reg.settings } };
         setData(local);
         setActiveNumber(phone);
@@ -462,14 +470,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       if (!password) return 'no-password';
-      // Supabase needs the number in full international form. We refuse to
-      // guess a country code - the same rule as `normalizePhone` - so we ask
-      // for it instead. The link the owner sends already has it.
+      // The number has to be in full international form, because it is what the
+      // auth address is derived from - and we refuse to guess a country code,
+      // the same rule as `normalizePhone`. The link the owner sends has it.
       if (!isE164(phone)) return 'needs-country-code';
 
       let result;
       try {
-        result = await client.auth.signInWithPassword({ phone, password });
+        // Signed in through the email provider under a derived address; see the
+        // note above `authEmailFor` for why this is not the phone provider.
+        result = await client.auth.signInWithPassword({
+          email: authEmailFor(phone),
+          password,
+        });
       } catch {
         return 'offline';
       }
