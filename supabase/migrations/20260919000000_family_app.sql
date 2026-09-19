@@ -1,7 +1,9 @@
 -- Family Tree app: accounts roster + one row per family tree.
 --
--- This database is shared between several apps, so every table here is
--- prefixed `family_` and nothing existing is touched.
+-- Runs against the `Family` project (ref agyxgjrodidtcybgvywu), which is this
+-- app's own - it does not share `auth.users` with anything else. The `family_`
+-- prefix is kept anyway: it costs nothing and it is what makes this file safe to
+-- replay into a shared project if that is ever needed.
 --
 -- Two things shape the schema:
 --
