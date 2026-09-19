@@ -224,7 +224,12 @@ export function ChartView({
           >
             {placed &&
               built.order.map((id) => {
+                // `placed` is measured one render behind `built`, so on the
+                // render that adds a person there is not a position for them
+                // yet. The card below hides itself in the same situation;
+                // here the whole link is simply left out for that one frame.
                 const me = placed.pos[id];
+                if (!me) return null;
                 const parentId = built.parentOf[id];
                 const par = parentId ? placed.pos[parentId] : undefined;
                 const otherId = built.otherParent[id];
