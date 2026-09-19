@@ -49,14 +49,17 @@ lookalike characters, because they get dictated to people.
 ### Why the account is an email address underneath
 
 Supabase Auth is used through its **email** provider, under an address derived
-from the number: `+923001234567` becomes `923001234567@phone.invalid`.
+from the number: `+923001234567` becomes `923001234567@familytree.local`.
 
 The obvious choice would be the phone provider, but enabling it requires wiring
 up an SMS sender (Twilio and friends) with real credentials and a real bill - to
 satisfy a delivery mechanism this app never uses, since you hand the password
 over yourself. The email provider needs no configuration and is on by default,
 and `email_confirm: true` means nothing is ever sent to these addresses either.
-`.invalid` is reserved by RFC 2606 so it can never resolve or reach anybody real.
+The domain is `.local` (RFC 6762, never resolvable on the public internet) and
+**not** `.invalid`, which reads like the better choice but which Supabase rejects
+outright with `email_address_invalid`. Nothing is ever sent to these addresses
+anyway, so only whether Supabase accepts them matters.
 
 **The user never sees this.** The sign-in screen asks for a phone number, and the
 number is what the app and `family_accounts` show throughout. The mapping lives in

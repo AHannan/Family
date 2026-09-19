@@ -15,7 +15,7 @@
  * person a message of any kind; the password reaches them through you.
  *
  * The account is created against Supabase's *email* provider, under an address
- * derived from the number (`923001234567@phone.invalid`), because the phone
+ * derived from the number (`923001234567@familytree.local`), because the phone
  * provider cannot be enabled without paying for an SMS sender we would never
  * use. `email_confirm: true` means no mail is ever sent. The full reasoning is
  * in lib/accounts.ts above `authEmailFor` - that is the source of truth, and the
@@ -94,10 +94,11 @@ if (!/^\+[1-9]\d{6,14}$/.test(phone)) {
   process.exit(1);
 }
 
-/* Must match `authEmailFor` in lib/accounts.ts. Duplicated rather than imported
-   because this script runs under plain node with no TypeScript build step; it is
-   two lines, and lib/accounts.ts carries the explanation. */
-const AUTH_EMAIL_DOMAIN = 'phone.invalid';
+/* Must match `authEmailFor` in lib/accounts.ts - if these two drift apart, nobody
+   can sign in. Duplicated rather than imported because this script runs under
+   plain node with no TypeScript build step; lib/accounts.ts carries the
+   explanation, including why the domain is not `.invalid`. */
+const AUTH_EMAIL_DOMAIN = 'familytree.local';
 const authEmail = `${phone.replace(/\D/g, '')}@${AUTH_EMAIL_DOMAIN}`;
 
 /**
@@ -165,7 +166,7 @@ async function main() {
     // the address counts as confirmed because you confirmed the person, by
     // talking to them. No mail is sent, and the address cannot receive any.
     // The number goes into user_metadata too, so the dashboard's user list is
-    // readable by a human rather than a column of digits@phone.invalid.
+    // readable by a human rather than a column of digits@familytree.local.
     const { data, error } = await admin.auth.admin.createUser({
       email: authEmail,
       password,

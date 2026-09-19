@@ -87,16 +87,23 @@ export function isE164(normalized: string): boolean {
  * is ever sent to these addresses either: `invite.mjs` creates users with
  * `email_confirm: true`, and the app only ever calls `signInWithPassword`.
  *
- * `.invalid` is reserved by RFC 2606 precisely so that it can never resolve, so
- * these addresses cannot collide with, or accidentally reach, anybody real.
+ * The domain needs care. The obvious choice is `.invalid`, reserved by RFC 2606
+ * precisely so it can never resolve - but **Supabase rejects it outright** with
+ * `email_address_invalid`, which was found by trying it against the live project,
+ * not by reading the docs. `.local` passes validation and is reserved by RFC 6762
+ * for mDNS, so it never resolves on the public internet either. Don't "tidy" this
+ * to `.invalid` or `.example`; check against a real project first.
+ *
+ * Nothing is ever sent here in any case, so deliverability does not matter - only
+ * whether gotrue accepts the address at all.
  *
  * The user never sees any of this: the sign-in screen asks for a phone number,
  * and the number is what `family_accounts` and the UI show throughout.
  */
 
-export const AUTH_EMAIL_DOMAIN = 'phone.invalid';
+export const AUTH_EMAIL_DOMAIN = 'familytree.local';
 
-/** `+923001234567` -> `923001234567@phone.invalid`. Expects an E.164 number. */
+/** `+923001234567` -> `923001234567@familytree.local`. Expects an E.164 number. */
 export function authEmailFor(normalizedPhone: string): string {
   return `${normalizedPhone.replace(/\D/g, '')}@${AUTH_EMAIL_DOMAIN}`;
 }
