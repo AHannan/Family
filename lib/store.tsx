@@ -3,9 +3,11 @@
 /** The whole app's state: several family trees, the language and text-size
  *  settings, and an undo stack.
  *
- *  Everything lives on the device. That was a deliberate choice - no account,
- *  no password, nothing to sign up for - so the backup file in Settings is the
- *  only thing standing between a user and a cleared browser. The UI says so.
+ *  Everything lives on the device. A phone number is only a label - the pile of
+ *  families filed under it here - so that a shared phone or tablet can hold
+ *  more than one person's tree. Nothing is sent anywhere and nothing is
+ *  verified, so the backup file in Settings is still the only thing standing
+ *  between a user and a cleared browser. The UI says so on both screens.
  */
 
 import {
@@ -25,10 +27,22 @@ import {
   uniqueId,
   type RelationKind,
 } from './family';
+import {
+  claimLegacyData,
+  clearLegacyData,
+  dataKeyFor,
+  isValidPhone,
+  normalizePhone,
+  readDataFor,
+  readRegistry,
+  sortAccounts,
+  touchAccount,
+  writeRegistry,
+  type Account,
+} from './accounts';
 import { buildSampleTree, SAMPLE_TREE_ID } from './seed';
 import { normalizePerson, type AppData, type Locale, type Person, type Settings, type Tree } from './types';
 
-const STORAGE_KEY = 'family-tree-app/v1';
 const UNDO_LIMIT = 40;
 
 const DEFAULT_SETTINGS: Settings = { locale: 'en', textScale: 1 };
@@ -102,6 +116,17 @@ function coerce(raw: unknown): AppData {
 
 interface Ctx {
   ready: boolean;
+
+  /** The number whose families are on screen, or null when signed out. */
+  activeNumber: string | null;
+  /** Every number used on this device, most recently used first. */
+  accounts: Account[];
+  /** Returns why a number was refused, or null when it worked. */
+  signIn: (phone: string) => 'empty' | 'invalid' | null;
+  signOut: () => void;
+  /** Drop a number from the sign-in list. Its families are left alone. */
+  forgetAccount: (phone: string) => void;
+
   data: AppData;
   settings: Settings;
   trees: Tree[];
@@ -139,6 +164,12 @@ const AppCtx = createContext<Ctx | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(emptyData);
   const [ready, setReady] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [activeNumber, setActiveNumber] = useState<string | null>(null);
+  /* The language and text size the *device* last used. The sign-in screen has
+     no families to read them from, and someone who reads Urdu must not be
+     handed an English screen just because they signed out. */
+  const [deviceSettings, setDeviceSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const undoStack = useRef<string[]>([]);
   const [canUndo, setCanUndo] = useState(false);
 
@@ -149,28 +180,106 @@ export function AppProvider({ children }: { children: ReactNode }) {
    */
   /* eslint-disable react-hooks/set-state-in-effect -- see note above */
   useEffect(() => {
-    let loaded: AppData | null = null;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) loaded = coerce(JSON.parse(raw));
-    } catch {
-      loaded = null; // corrupt or blocked storage - start fresh rather than crash
+    const reg = readRegistry(DEFAULT_SETTINGS);
+    setAccounts(sortAccounts(reg.accounts));
+    setDeviceSettings(reg.settings);
+
+    if (reg.activeNumber) {
+      // Somebody was already signed in here; go straight back to their families
+      // rather than asking for the number again on every visit.
+      let loaded: AppData | null = null;
+      try {
+        const raw = readDataFor(reg.activeNumber);
+        if (raw) loaded = coerce(raw);
+      } catch {
+        loaded = null; // corrupt storage - start fresh rather than crash
+      }
+      setData(loaded ?? { ...emptyData(), settings: { ...reg.settings } });
+      setActiveNumber(reg.activeNumber);
     }
-    setData(loaded ?? emptyData());
     setReady(true);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  /* ---- persist on every change -------------------------------------- */
+  /* ---- persist on every change --------------------------------------
+   * Only ever under the number that is signed in. Writing while signed out
+   * would file one person's edits under whoever signs in next.
+   */
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !activeNumber) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(dataKeyFor(activeNumber), JSON.stringify(data));
     } catch {
       // Private mode or a full quota. Nothing useful to do here; the backup
       // file in Settings is the documented way out.
     }
-  }, [data, ready]);
+  }, [data, ready, activeNumber]);
+
+  /* Which numbers have been used here, and who is on the device now. */
+  useEffect(() => {
+    if (!ready) return;
+    writeRegistry({ version: 1, accounts, activeNumber, settings: deviceSettings });
+  }, [ready, accounts, activeNumber, deviceSettings]);
+
+  /* ---- signing in and out --------------------------------------------
+   * No code, no password: the number is a label, not a credential. Anyone
+   * holding the device can type any number, and the sign-in screen says so.
+   */
+
+  const signIn = useCallback(
+    (raw: string) => {
+      const phone = normalizePhone(raw);
+      if (!phone.replace(/\D/g, '')) return 'empty' as const;
+      if (!isValidPhone(phone)) return 'invalid' as const;
+
+      let loaded: AppData | null = null;
+      try {
+        const stored = readDataFor(phone);
+        if (stored) loaded = coerce(stored);
+      } catch {
+        loaded = null; // unreadable - better an empty list than a crash
+      }
+
+      // The first number ever used here inherits whatever the device held
+      // before numbers existed, so nobody loses a tree by updating the app.
+      if (!loaded && accounts.length === 0) {
+        const legacy = claimLegacyData();
+        if (legacy) {
+          try {
+            loaded = coerce(legacy);
+            localStorage.setItem(dataKeyFor(phone), JSON.stringify(loaded));
+            clearLegacyData();
+          } catch {
+            loaded = null; // old data unreadable - treat the number as new
+          }
+        }
+      }
+
+      // A number nobody has used here starts empty, but keeps the language and
+      // text size chosen on the sign-in screen.
+      setData(loaded ?? { ...emptyData(), settings: { ...deviceSettings } });
+      if (loaded) setDeviceSettings(loaded.settings);
+      setAccounts((prev) => sortAccounts(touchAccount(prev, phone)));
+      undoStack.current = [];
+      setCanUndo(false);
+      setActiveNumber(phone);
+      return null;
+    },
+    [accounts.length, deviceSettings],
+  );
+
+  const signOut = useCallback(() => {
+    // Nothing is deleted: the families stay filed under the number.
+    undoStack.current = [];
+    setCanUndo(false);
+    setActiveNumber(null);
+    setData({ ...emptyData(), settings: { ...deviceSettings } });
+  }, [deviceSettings]);
+
+  const forgetAccount = useCallback((raw: string) => {
+    const phone = normalizePhone(raw);
+    setAccounts((prev) => prev.filter((a) => a.phone !== phone));
+  }, []);
 
   /** Every mutation goes through here so undo is never forgotten. */
   const mutate = useCallback((fn: (draft: AppData) => void, recordUndo = true) => {
@@ -374,12 +483,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /* ---- settings ------------------------------------------------------ */
 
+  /* Both are mirrored onto the device as well as the signed-in number, so the
+     sign-in screen - which has no families to read them from - opens the way
+     the last person left it. */
   const setLocale = useCallback(
-    (locale: Locale) => mutate((d) => { d.settings.locale = locale; }, false),
+    (locale: Locale) => {
+      setDeviceSettings((prev) => ({ ...prev, locale }));
+      mutate((d) => { d.settings.locale = locale; }, false);
+    },
     [mutate],
   );
   const setTextScale = useCallback(
-    (textScale: number) => mutate((d) => { d.settings.textScale = textScale; }, false),
+    (textScale: number) => {
+      setDeviceSettings((prev) => ({ ...prev, textScale }));
+      mutate((d) => { d.settings.textScale = textScale; }, false);
+    },
     [mutate],
   );
 
@@ -412,8 +530,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Ctx>(
     () => ({
       ready,
+      activeNumber,
+      accounts,
+      signIn,
+      signOut,
+      forgetAccount,
       data,
-      settings: data.settings,
+      settings: activeNumber ? data.settings : deviceSettings,
       trees: data.trees,
       getTree,
       setLocale,
@@ -435,7 +558,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       importFile,
     }),
     [
-      ready, data, getTree, setLocale, setTextScale, createTree, addSampleTree,
+      ready, activeNumber, accounts, signIn, signOut, forgetAccount, deviceSettings,
+      data, getTree, setLocale, setTextScale, createTree, addSampleTree,
       renameTree, deleteTree, setTreeField, addPerson, updatePerson, reorderChildren,
       deletePerson,
       linkSpouse, unlinkSpouse, canUndo, undo, exportBlob, importFile,

@@ -18,9 +18,18 @@ Next.js 16 / React 19 / Tailwind v4 / TypeScript strict. Import alias `@/*` → 
 
 ## Architecture
 
-**Everything is client-side.** No API routes, no database, no auth. The whole app state is one `AppData` object (`{version, trees[], settings}`) held in a React context and mirrored to `localStorage` under `family-tree-app/v1`. Pages under [app/](app/) are `'use client'`; the only server component is [app/layout.tsx](app/layout.tsx), which just loads fonts and mounts the providers.
+**Everything is client-side.** No API routes, no database, no real auth. The whole app state is one `AppData` object (`{version, trees[], settings}`) held in a React context and mirrored to `localStorage` under `family-tree-app/v1/<phone>` — one such key per phone number used on the device (see [lib/accounts.ts](lib/accounts.ts)). Pages under [app/](app/) are `'use client'`; the only server component is [app/layout.tsx](app/layout.tsx), which just loads fonts and mounts the providers.
 
-Provider order, set in [app/layout.tsx](app/layout.tsx): `AppProvider` → `ToastProvider` → `LocaleShell`. `LocaleShell` renders a spinner until the store has read localStorage, which is what prevents an English/LTR flash for an Urdu user — don't render app chrome above it.
+Provider order, set in [app/layout.tsx](app/layout.tsx): `AppProvider` → `ToastProvider` → `LocaleShell` → `AuthGate`. `LocaleShell` renders a spinner until the store has read localStorage, which is what prevents an English/LTR flash for an Urdu user — don't render app chrome above it. `AuthGate` then shows the sign-in screen instead of the requested page whenever `activeNumber` is null, so every page under [app/](app/) may assume a number is open.
+
+### Phone numbers are labels, not logins ([lib/accounts.ts](lib/accounts.ts))
+
+There is no OTP and no server; typing a number just picks which pile of families to show, so a shared tablet can hold several people's trees. The UI says so on the sign-in screen and in the README — don't add wording that implies a number is verified or private.
+
+- `normalizePhone` keeps digits and a leading `+` only, so `0300 123-4567` and `03001234567` reach the same families. A country code is never inferred: `+92300…` and `0300…` stay different numbers, because guessing wrong would show somebody a stranger's tree.
+- The registry (`family-tree-app/accounts/v1`) holds the number list, who is open, and a copy of the settings. That copy exists because the sign-in screen has no `AppData` to read the language from — `setLocale`/`setTextScale` write both, so signing out doesn't flip an Urdu reader back to English.
+- `signIn` reads the number's own data through the same `coerce()` as a file import, resets the undo stack, and — for the first number ever used on the device — claims whatever sat under the old `family-tree-app/v1` key so no tree is lost to the upgrade.
+- Signing out and forgetting a number are both non-destructive: the data stays under its key and comes back when the number is typed again. Say that in the confirm text.
 
 ### The store is the only way to mutate ([lib/store.tsx](lib/store.tsx))
 

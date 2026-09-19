@@ -3,6 +3,7 @@ import { Noto_Nastaliq_Urdu, Source_Sans_3 } from 'next/font/google';
 import './globals.css';
 import { AppProvider } from '@/lib/store';
 import { LocaleShell } from '@/components/LocaleShell';
+import { AuthGate } from '@/components/SignIn';
 import { ToastProvider } from '@/components/Toast';
 
 const ui = Source_Sans_3({
@@ -42,7 +43,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased" suppressHydrationWarning>
         <AppProvider>
           <ToastProvider>
-            <LocaleShell>{children}</LocaleShell>
+            <LocaleShell>
+              <AuthGate>{children}</AuthGate>
+            </LocaleShell>
           </ToastProvider>
         </AppProvider>
       </body>

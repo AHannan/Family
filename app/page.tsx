@@ -11,7 +11,8 @@ import type { Tree } from '@/lib/types';
 
 export default function HomePage() {
   const router = useRouter();
-  const { trees, settings, createTree, addSampleTree, renameTree, deleteTree, undo } = useApp();
+  const { trees, settings, createTree, addSampleTree, renameTree, deleteTree, undo, activeNumber } =
+    useApp();
   const s = t(settings.locale);
   const toast = useToast();
 
@@ -139,7 +140,9 @@ export default function HomePage() {
           </div>
         )}
 
-        <p className="mt-8 text-center text-base text-ink-faint">{s.savedOnDevice}</p>
+        <p className="mt-8 text-center text-base text-ink-faint">
+          {activeNumber ? `${s.signedInAs(activeNumber)} · ${s.savedOnDevice}` : s.savedOnDevice}
+        </p>
       </main>
 
       {/* new family */}

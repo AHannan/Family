@@ -4,8 +4,10 @@ Build and keep your family tree. Works in **English and Urdu**, on a phone or a
 laptop, and is designed so that someone who is not comfortable with software can
 still use it on their own.
 
-A Next.js app. Everything is stored on the device — no account, no sign-up, no
-server to run.
+A Next.js app. Everything is stored on the device — no sign-up, no password,
+no server to run. You open it by typing a phone number, which is only the label
+your families are filed under on that device; one phone or tablet can hold
+several people's trees that way.
 
 ## Running it
 
@@ -28,6 +30,9 @@ npm run build && npm start   # production
 - **English ⇄ Urdu**, with the whole interface flipping right-to-left.
 - **Undo** on every change, with an Undo button in the message that appears.
 - **Backup to a file** and restore it on any device.
+- **One device, several people.** Each phone number opens its own set of
+  families. Switch numbers from Settings; the ones used before are listed on the
+  first screen.
 
 ### Designed for a non-technical user
 
@@ -78,8 +83,14 @@ app in a language they cannot read is still one tap from fixing it.
 
 ## Where your data lives
 
-In this browser, on this device. That is the trade for having no account to
-create and no password to remember, and the app says so on the home screen.
+In this browser, on this device, under the phone number you typed on the first
+screen. That is the trade for having no account to create and no password to
+remember, and the app says so on both screens.
+
+The number is a label, not a login. Nothing is sent anywhere, nothing is
+verified, and anyone holding the device can open any number — so it separates
+one family's trees from another's on a shared tablet, and nothing more. Do not
+keep anything private in here.
 
 It means: trees do not sync between your phone and your laptop, and clearing
 browser data erases them. **Settings → Backup → Save a backup file** writes
@@ -182,16 +193,20 @@ lib/
   family.ts             relationship rules, repair, attach
   layout.ts             chart shape and positioning
   store.tsx             state, device storage, undo, import/export
+  accounts.ts           phone numbers: normalising, and which one is open
   seed.ts               the bundled example
 ```
 
-`lib/family.ts` and `lib/layout.ts` are plain functions with no React in them,
+`lib/family.ts`, `lib/layout.ts` and `lib/accounts.ts` are plain functions with
+no React in them,
 so the rules about how relatives hang together can be reasoned about — and
 tested — on their own.
 
 ## Known limits
 
 - One device. No sync; the backup file is the way to move between devices.
+- The phone number is not checked and gives no protection — it only keeps one
+  person's families apart from another's on the same device.
 - Marriage records hold who, not when — no marriage or divorce dates.
 - No photos yet; people are shown as a coloured initial.
 - The chart prints as whatever is currently on screen rather than paginating a

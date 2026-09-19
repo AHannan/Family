@@ -1,18 +1,20 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Header } from '@/components/Header';
 import { useToast } from '@/components/Toast';
-import { Button, Segmented } from '@/components/ui';
+import { Button, Confirm, Segmented } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { useApp } from '@/lib/store';
 import type { Locale } from '@/lib/types';
 
 export default function SettingsPage() {
-  const { settings, setLocale, setTextScale, exportBlob, importFile, trees } = useApp();
+  const { settings, setLocale, setTextScale, exportBlob, importFile, trees, activeNumber, signOut } =
+    useApp();
   const s = t(settings.locale);
   const toast = useToast();
   const fileInput = useRef<HTMLInputElement>(null);
+  const [signingOut, setSigningOut] = useState(false);
 
   function saveBackup() {
     // Local date, not UTC - a file stamped with yesterday is confusing.
@@ -26,7 +28,9 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(exportBlob());
     const a = document.createElement('a');
     a.href = url;
-    a.download = `family-trees-${stamp}.json`;
+    // The number is in the filename so backups from a shared device do not all
+    // land in the downloads folder under the same name.
+    a.download = `family-trees-${activeNumber ?? 'device'}-${stamp}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -47,6 +51,16 @@ export default function SettingsPage() {
       <Header title={s.settings} backHref="/" />
 
       <main className="mx-auto max-w-2xl px-4 py-6">
+        <Card title={s.yourNumber}>
+          <p dir="ltr" className="text-2xl font-bold">
+            {activeNumber}
+          </p>
+          <p className="mt-2 text-lg text-ink-soft">{s.yourNumberBody}</p>
+          <div className="mt-4">
+            <Button onClick={() => setSigningOut(true)}>{s.useAnotherNumber}</Button>
+          </div>
+        </Card>
+
         <Card title={s.language}>
           <Segmented<Locale>
             label={s.language}
@@ -98,6 +112,20 @@ export default function SettingsPage() {
           />
         </Card>
       </main>
+
+      <Confirm
+        open={signingOut}
+        title={s.useAnotherNumber}
+        message={activeNumber ? s.signOutConfirm(activeNumber) : ''}
+        confirmLabel={s.confirm}
+        cancelLabel={s.cancel}
+        onCancel={() => setSigningOut(false)}
+        onConfirm={() => {
+          setSigningOut(false);
+          signOut();
+          toast.show(s.signedOut);
+        }}
+      />
     </div>
   );
 }

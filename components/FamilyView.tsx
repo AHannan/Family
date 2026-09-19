@@ -48,7 +48,7 @@ export function FamilyView({
 
       {/* ---- parents ---- */}
       <Section title={s.parents}>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {father ? (
             <RelativeButton person={father} onClick={() => onFocus(father.id)} role={s.father} />
           ) : (
@@ -65,7 +65,7 @@ export function FamilyView({
       <Connector />
 
       {/* ---- the person, and whoever they married ---- */}
-      <div className="grid items-stretch gap-3 sm:grid-cols-[1.4fr_1fr]">
+      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="rounded-3xl border-4 border-brand bg-card p-5 text-center">
           <div className="flex justify-center">
             <Avatar name={focus.name} gender={focus.gender} size="lg" />
@@ -116,13 +116,21 @@ export function FamilyView({
         {kids.length > 1 ? (
           <>
             <p className="mb-2 text-base text-ink-faint">{s.reorderHint}</p>
+            {/* One column, numbered: "Up" and "Down" only mean something
+                when the order runs straight down the page. */}
             <ReorderList
               key={focus.id}
               items={kids}
-              className="grid gap-3 sm:grid-cols-2"
-              rtl={settings.locale === 'ur'}
-              moveLabel={s.move}
-              moveLabelFor={(k) => s.movePerson(displayName(k, settings.locale))}
+              // grid-cols-1, not a bare grid: an implicit `auto` track sizes
+              // itself to the widest name and pushes the Up/Down buttons off
+              // the side of a phone. minmax(0, 1fr) keeps the row in bounds.
+              className="grid grid-cols-1 gap-3"
+              upLabel={s.moveUp}
+              downLabel={s.moveDown}
+              upLabelFor={(k) => s.moveUpFor(displayName(k, settings.locale))}
+              downLabelFor={(k) => s.moveDownFor(displayName(k, settings.locale))}
+              placeHereLabel={s.placeHere}
+              describePosition={(n, total) => s.positionOf(n, total)}
               describeMove={(n, total) => s.movedTo(n, total)}
               onReorder={(orderedIds) => {
                 reorderChildren(tree.id, focus.id, orderedIds);
@@ -134,13 +142,13 @@ export function FamilyView({
             />
           </>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {kids.map((k) => (
               <RelativeButton key={k.id} person={k} onClick={() => onFocus(k.id)} />
             ))}
           </div>
         )}
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <AddSlot label={s.addSon} onClick={() => onAdd('son', focus.id)} />
           <AddSlot label={s.addDaughter} onClick={() => onAdd('daughter', focus.id)} />
         </div>
@@ -149,14 +157,14 @@ export function FamilyView({
       {/* ---- brothers and sisters ---- */}
       <Section title={`${s.siblings}${sibs.length ? ` (${sibs.length})` : ''}`}>
         {sibs.length > 0 && (
-          <div className="mb-3 grid gap-3 sm:grid-cols-2">
+          <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {sibs.map((b) => (
               <RelativeButton key={b.id} person={b} onClick={() => onFocus(b.id)} />
             ))}
           </div>
         )}
         {(focus.fatherId || focus.motherId) && (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <AddSlot label={s.addBrother} onClick={() => onAdd('brother', focus.id)} />
             <AddSlot label={s.addSister} onClick={() => onAdd('sister', focus.id)} />
           </div>
