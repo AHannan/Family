@@ -34,7 +34,9 @@ export function ChartView({
   tree: Tree;
   focusId: string | null;
   onOpen: (id: string) => void;
-  onRootChange: (id: string) => void;
+  /* Absent on the shared-link page: re-rooting somebody else's chart is a
+     change to their tree, so the "Start from" control goes with it. */
+  onRootChange?: (id: string) => void;
 }) {
   const { settings } = useApp();
   const s = t(settings.locale);
@@ -149,20 +151,27 @@ export function ChartView({
     <div className="flex min-h-0 flex-1 flex-col">
       {/* controls */}
       <div className="flex flex-wrap items-center gap-3 border-b-2 border-line-soft bg-card px-4 py-2.5">
-        <label className="flex items-center gap-2 text-base font-semibold text-ink-soft">
-          {s.startFrom}
-          <select
-            value={tree.rootId ?? ''}
-            onChange={(e) => onRootChange(e.target.value)}
-            className="tap max-w-52 rounded-xl border-2 border-line bg-card px-3 text-lg text-ink"
-          >
-            {roots.map((p) => (
-              <option key={p.id} value={p.id}>
-                {displayName(p, settings.locale)}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* No handler means a shared family, where re-rooting somebody else's
+            chart is not ours to do. The control is removed rather than
+            disabled - a dead control is worse than none for this user. The
+            spouse and maternal toggles below are purely local to the view, so
+            they stay. */}
+        {onRootChange && (
+          <label className="flex items-center gap-2 text-base font-semibold text-ink-soft">
+            {s.startFrom}
+            <select
+              value={tree.rootId ?? ''}
+              onChange={(e) => onRootChange(e.target.value)}
+              className="tap max-w-52 rounded-xl border-2 border-line bg-card px-3 text-lg text-ink"
+            >
+              {roots.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {displayName(p, settings.locale)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className="flex items-center gap-2 text-base text-ink-soft">
           <input

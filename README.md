@@ -4,10 +4,15 @@ Build and keep your family tree. Works in **English and Urdu**, on a phone or a
 laptop, and is designed so that someone who is not comfortable with software can
 still use it on their own.
 
-A Next.js app. Everything is stored on the device — no sign-up, no password,
-no server to run. You open it by typing a phone number, which is only the label
-your families are filed under on that device; one phone or tablet can hold
-several people's trees that way.
+A Next.js app, local-first with a Supabase database behind it. You sign in with
+your phone number and a password, your families are kept in the browser as you
+work and saved online a moment later, so they come back on any phone you sign in
+on — and a cleared browser is no longer the end of them.
+
+**There is no sign-up.** Somebody asks to be let in and gives their number, the
+owner creates the account and sends them a link and a password. Nothing is sent
+by SMS or email, so no messaging provider is needed and nothing costs anything
+per user. See [Accounts](#accounts).
 
 ## Running it
 
@@ -19,6 +24,38 @@ npm run dev          # http://localhost:3000
 ```sh
 npm run build && npm start   # production
 ```
+
+Copy `.env.local.example` to `.env.local` and fill in the two
+`NEXT_PUBLIC_SUPABASE_*` values to connect the database. **Without them the app
+still runs** — it falls back to local-only, where a number is just a label again
+and nothing is saved online. That is the same thing a dead network gets, on
+purpose, so a bad connection never locks anybody out of their own tree.
+
+## Accounts
+
+There is no sign-up screen, no OTP and no SMS provider. An account exists because
+you made one:
+
+```sh
+npm run invite -- +923001234567 "Nani Amma"     # create, print link + password
+npm run invite -- +923001234567 --reset         # send them a new password
+```
+
+It prints a link and a password to pass on however you like — WhatsApp, a text,
+or read down the phone. The link carries the number, so the person only has to
+type the password. Passwords are generated in three short groups with no
+lookalike characters, because they get dictated to people.
+
+This works with no messaging provider because `phone_confirm` marks the number
+confirmed on the grounds that *you* confirmed it, by talking to them. Supabase
+never sends the person anything.
+
+`scripts/invite.mjs` needs `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. That key
+bypasses row level security; it has no `NEXT_PUBLIC_` prefix, so Next.js never
+puts it in the browser bundle. Keep it that way.
+
+To take somebody's access away without deleting anything, set
+`family_accounts.is_active` to `false`.
 
 ## What it does
 
@@ -83,19 +120,34 @@ app in a language they cannot read is still one tap from fixing it.
 
 ## Where your data lives
 
-In this browser, on this device, under the phone number you typed on the first
-screen. That is the trade for having no account to create and no password to
-remember, and the app says so on both screens.
+Two places, and that is deliberate.
 
-The number is a label, not a login. Nothing is sent anywhere, nothing is
-verified, and anyone holding the device can open any number — so it separates
-one family's trees from another's on a shared tablet, and nothing more. Do not
-keep anything private in here.
+The browser holds the copy you are working on, filed under your number, so the
+app is instant, works with no signal, and can undo. A second or so after you stop
+editing, each changed family is written to the `family_trees` table in Supabase.
+The line under the family list says which of those has happened.
 
-It means: trees do not sync between your phone and your laptop, and clearing
-browser data erases them. **Settings → Backup → Save a backup file** writes
-everything to one JSON file; "Open a backup file" reads it back on any device
-and merges it with whatever is already there.
+Signing in on a new phone pulls your families down. Row level security is what
+keeps them yours: every policy is `owner_id = auth.uid()`, so the database itself
+refuses to hand your trees to anyone else.
+
+**A sync never destroys a tree.** When the two copies disagree, the one edited
+more recently wins, and a family that only one side has is kept rather than
+deleted — the same rule the backup import has always followed. The reasoning is
+in `lib/cloud.ts`: for somebody whose only other copy is a file they have
+probably never saved, a wrong deletion is unrecoverable and a duplicate is not.
+Deleting a family on your device does delete it online; a family that merely went
+missing is treated as one to restore.
+
+**Settings → Backup → Save a backup file** still writes everything to one JSON
+file, and still works offline — it is the one copy that does not depend on
+anybody else's servers.
+
+### Sharing a family
+
+Off until you ask for it. **Share** on a family card gives a link that anyone can
+open, with no account, to read that family — they cannot change anything. Turn it
+off and the link stops working. Nothing else about you is on that page.
 
 ### File format
 
@@ -194,19 +246,29 @@ lib/
   layout.ts             chart shape and positioning
   store.tsx             state, device storage, undo, import/export
   accounts.ts           phone numbers: normalising, and which one is open
+  cloud.ts              reading and writing trees in Supabase, and the merge rule
+  supabase.ts           the one browser client
   seed.ts               the bundled example
+scripts/
+  invite.mjs            create an account and print its link and password
+supabase/migrations/    the family_accounts and family_trees schema
 ```
 
-`lib/family.ts`, `lib/layout.ts` and `lib/accounts.ts` are plain functions with
-no React in them,
+`lib/family.ts`, `lib/layout.ts`, `lib/accounts.ts` and `lib/cloud.ts` are plain
+functions with no React in them,
 so the rules about how relatives hang together can be reasoned about — and
 tested — on their own.
 
 ## Known limits
 
-- One device. No sync; the backup file is the way to move between devices.
-- The phone number is not checked and gives no protection — it only keeps one
-  person's families apart from another's on the same device.
+- No sign-up. Accounts are created one at a time from the command line, which is
+  the intended design at this size but does not scale to strangers.
+- Passwords are delivered by hand and there is no "forgot password" — a reset is
+  `npm run invite -- <number> --reset`.
+- A number has to be typed with its country code, because nothing here guesses
+  one. The link you send already carries it.
+- A family deleted on another device can come back on this one: the merge keeps
+  anything either side has, and there are no tombstones.
 - Marriage records hold who, not when — no marriage or divorce dates.
 - No photos yet; people are shown as a coloured initial.
 - The chart prints as whatever is currently on screen rather than paginating a

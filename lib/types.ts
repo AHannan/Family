@@ -37,6 +37,12 @@ export interface Tree {
   people: Person[];
   /** Set on the bundled example so the app can label it and offer a reset. */
   isSample?: boolean;
+  /** The owner has asked for this tree to be readable by anyone with the link. */
+  isPublic?: boolean;
+  /** The row id in family_trees, once this tree has reached the cloud. It is
+   *  what a public link points at, so it is kept on the device rather than
+   *  looked up again. Null until the first successful sync. */
+  cloudUid?: string | null;
 }
 
 export type Locale = 'en' | 'ur';

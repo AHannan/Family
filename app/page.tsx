@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Header } from '@/components/Header';
+import { ShareSheet } from '@/components/ShareSheet';
+import { SignOutButton } from '@/components/SignOutButton';
 import { useToast } from '@/components/Toast';
 import { Button, Confirm, LinkButton, Sheet, TextField } from '@/components/ui';
 import { displayName, t } from '@/lib/i18n';
@@ -11,8 +13,18 @@ import type { Tree } from '@/lib/types';
 
 export default function HomePage() {
   const router = useRouter();
-  const { trees, settings, createTree, addSampleTree, renameTree, deleteTree, undo, activeNumber } =
-    useApp();
+  const {
+    trees,
+    settings,
+    createTree,
+    addSampleTree,
+    renameTree,
+    deleteTree,
+    undo,
+    activeNumber,
+    cloudOn,
+    syncState,
+  } = useApp();
   const s = t(settings.locale);
   const toast = useToast();
 
@@ -22,6 +34,7 @@ export default function HomePage() {
   const [renaming, setRenaming] = useState<Tree | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [deleting, setDeleting] = useState<Tree | null>(null);
+  const [sharing, setSharing] = useState<Tree | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   // Opening a family we have only just created is a race: the route would
@@ -61,6 +74,19 @@ export default function HomePage() {
       />
 
       <main className="mx-auto max-w-4xl px-4 py-6">
+        {/* Who this device is showing families for, and the way out. A shared
+            tablet is handed on several times a day, so signing out has to be
+            on the first screen - not two taps into Settings. */}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-line bg-card px-4 py-3">
+          <div className="min-w-0">
+            <span className="block text-base text-ink-faint">{s.yourNumber}</span>
+            <span dir="ltr" className="block truncate text-xl font-bold">
+              {activeNumber}
+            </span>
+          </div>
+          <SignOutButton />
+        </div>
+
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-3xl font-bold">{s.myFamilies}</h2>
@@ -105,6 +131,13 @@ export default function HomePage() {
                         {s.exampleBadge}
                       </span>
                     )}
+                    {/* Whether other people can see this family belongs on the
+                        card, not only inside the share sheet. */}
+                    {tree.isPublic && (
+                      <span className="rounded-full bg-sunk px-3 py-0.5 text-sm font-semibold text-ink-soft">
+                        {s.publicBadge}
+                      </span>
+                    )}
                   </span>
                   <span className="mt-1 block text-lg text-ink-soft">
                     {s.peopleCount(tree.people.length)}
@@ -123,6 +156,7 @@ export default function HomePage() {
                   >
                     {s.renameFamily}
                   </Button>
+                  {cloudOn && <Button onClick={() => setSharing(tree)}>{s.share}</Button>}
                   <Button variant="danger" onClick={() => setDeleting(tree)}>
                     {s.remove}
                   </Button>
@@ -140,8 +174,17 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Where the families actually are. A user whose only copy is in a
+            browser deserves to know when it has reached the cloud and when it
+            has not - so the error state names the reason and the remedy. */}
         <p className="mt-8 text-center text-base text-ink-faint">
-          {activeNumber ? `${s.signedInAs(activeNumber)} · ${s.savedOnDevice}` : s.savedOnDevice}
+          {!cloudOn
+            ? s.savedOnDevice
+            : syncState === 'syncing'
+              ? s.syncing
+              : syncState === 'error'
+                ? s.syncError
+                : s.savedOnline}
         </p>
       </main>
 
@@ -204,6 +247,9 @@ export default function HomePage() {
           onChange={(e) => setRenameValue(e.target.value)}
         />
       </Sheet>
+
+      {/* share */}
+      <ShareSheet tree={sharing} open={!!sharing} onClose={() => setSharing(null)} />
 
       {/* delete */}
       <Confirm

@@ -1,20 +1,20 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { Header } from '@/components/Header';
+import { SignOutButton } from '@/components/SignOutButton';
 import { useToast } from '@/components/Toast';
-import { Button, Confirm, Segmented } from '@/components/ui';
+import { Button, Segmented } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { useApp } from '@/lib/store';
 import type { Locale } from '@/lib/types';
 
 export default function SettingsPage() {
-  const { settings, setLocale, setTextScale, exportBlob, importFile, trees, activeNumber, signOut } =
+  const { settings, setLocale, setTextScale, exportBlob, importFile, trees, activeNumber } =
     useApp();
   const s = t(settings.locale);
   const toast = useToast();
   const fileInput = useRef<HTMLInputElement>(null);
-  const [signingOut, setSigningOut] = useState(false);
 
   function saveBackup() {
     // Local date, not UTC - a file stamped with yesterday is confusing.
@@ -56,8 +56,10 @@ export default function SettingsPage() {
             {activeNumber}
           </p>
           <p className="mt-2 text-lg text-ink-soft">{s.yourNumberBody}</p>
+          {/* "Sign out" is the word people look for; the line under it is what
+              they actually want to know before tapping it. */}
           <div className="mt-4">
-            <Button onClick={() => setSigningOut(true)}>{s.useAnotherNumber}</Button>
+            <SignOutButton />
           </div>
         </Card>
 
@@ -113,19 +115,6 @@ export default function SettingsPage() {
         </Card>
       </main>
 
-      <Confirm
-        open={signingOut}
-        title={s.useAnotherNumber}
-        message={activeNumber ? s.signOutConfirm(activeNumber) : ''}
-        confirmLabel={s.confirm}
-        cancelLabel={s.cancel}
-        onCancel={() => setSigningOut(false)}
-        onConfirm={() => {
-          setSigningOut(false);
-          signOut();
-          toast.show(s.signedOut);
-        }}
-      />
     </div>
   );
 }

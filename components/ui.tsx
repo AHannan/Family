@@ -6,7 +6,6 @@ import {
   useId,
   useRef,
   type ComponentPropsWithRef,
-  type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
@@ -103,7 +102,9 @@ export function TextField({
   hint,
   error,
   ...rest
-}: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string }) {
+  // A ref is forwarded so a screen can move focus into the field - the sign-in
+  // screen does it when a saved number is tapped.
+}: ComponentPropsWithRef<'input'> & { label: string; hint?: string; error?: string }) {
   const id = useId();
   return (
     <FieldShell label={label} hint={hint} error={error} id={id}>

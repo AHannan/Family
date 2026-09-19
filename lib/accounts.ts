@@ -57,6 +57,18 @@ export function isValidPhone(normalized: string): boolean {
   return digits.length >= 7 && digits.length <= 15;
 }
 
+/**
+ * Whether a number is in full international form, which Supabase requires.
+ *
+ * Checked rather than fixed, on purpose. `normalizePhone` refuses to guess a
+ * country code because guessing wrong would aim somebody at a stranger's
+ * account; the same reasoning applies here, so a number without one is sent
+ * back to the user to complete. The link the owner sends already carries it.
+ */
+export function isE164(normalized: string): boolean {
+  return /^\+[1-9]\d{6,14}$/.test(normalized);
+}
+
 export function dataKeyFor(phone: string): string {
   return DATA_PREFIX + encodeURIComponent(phone);
 }

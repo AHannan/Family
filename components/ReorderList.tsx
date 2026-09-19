@@ -5,30 +5,35 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 /**
  * A list whose items can be put into a different order.
  *
- * Dragging is the *second* way to do this, never the only one. Each row
- * carries a plain "Up" and "Down" button, so the order can be changed one
- * step at a time with single taps - no gesture, no steady hand, no mouse. The
- * same two buttons double as drag handles: press one and move more than a few
- * millimetres and the row lifts and follows the finger instead.
+ * Two ways to do it, and neither one is hidden:
  *
- * Two things make the drag itself forgiving:
+ *  - "Up" and "Down" on every row move it one step per tap. No gesture, no
+ *    steady hand, no mouse - this is the way that always works.
+ *  - A "Move" handle beside them, the full height of the row, is pressed and
+ *    dragged. It is its own control rather than a secret gesture on the
+ *    arrows: a handle you can see is a handle you can find, and the arrows go
+ *    back to being plain buttons that do one thing.
  *
- *  - The list does **not** re-order underneath the finger. Shuffling rows
- *    while the pointer is over them feeds their new positions straight back
- *    into the hit test, and the list flickers between two orders. Here the
- *    rows hold still, the row being dropped onto is ringed and labelled
- *    "Place here", and the move happens once, on release.
+ * Three things make the drag itself forgiving:
+ *
+ *  - The rows slide aside to open a gap where the person would land, and the
+ *    gap says "Place here". You are putting somebody into a space, not aiming
+ *    at a row.
  *  - Hit testing runs against the row positions measured at the moment the
- *    drag started, in page coordinates, so neither the lift nor auto-scroll
+ *    drag started, in page coordinates, so the sliding rows never feed their
+ *    new positions back into the hit test - that is what makes lists like
+ *    this flicker between two orders - and neither the lift nor auto-scroll
  *    can move the target out from under the pointer.
+ *  - Nothing moves until the finger comes up, and Escape abandons the drag
+ *    with nothing moved at all.
  *
  * Pointer events are used directly rather than HTML5 drag-and-drop, which
  * does not exist on touch screens.
  */
 
-/** How far the pointer must travel before a press counts as a drag rather
- *  than a tap. Generous, because a tap from an unsteady hand is not a drag. */
-const DRAG_START = 12;
+/** How far the pointer must travel before a press counts as a drag. Small,
+ *  because the handle has no other job - a press on it is already a drag. */
+const DRAG_START = 6;
 /** Auto-scroll once the pointer comes this close to the top or bottom. */
 const EDGE = 96;
 const EDGE_SPEED = 16;
@@ -40,6 +45,15 @@ interface Box {
   bottom: number;
   left: number;
   right: number;
+}
+
+/** Everything about the list's shape, measured once when the drag began. */
+interface Geometry {
+  boxes: Box[];
+  /** Vertical space between one row and the next. */
+  gap: number;
+  /** Top of the list itself, so the gap can be placed inside it. */
+  containerTop: number;
 }
 
 interface Drag {
@@ -65,6 +79,8 @@ export function ReorderList<T extends { id: string }>({
   downLabel,
   upLabelFor,
   downLabelFor,
+  dragLabel,
+  dragLabelFor,
   placeHereLabel,
   describePosition,
   describeMove,
@@ -80,7 +96,11 @@ export function ReorderList<T extends { id: string }>({
   /** Spoken label for one button, e.g. "Move Ali up". */
   upLabelFor: (item: T) => string;
   downLabelFor: (item: T) => string;
-  /** Shown on the row a drag would drop onto, e.g. "Place here". */
+  /** The word on the drag handle, e.g. "Move". */
+  dragLabel: string;
+  /** Spoken label for the handle, which also says how to work it. */
+  dragLabelFor: (item: T) => string;
+  /** Shown in the gap a drag would drop into, e.g. "Place here". */
   placeHereLabel: string;
   /** Live readout while dragging, e.g. "Position 3 of 5". */
   describePosition: (position: number, total: number) => string;
@@ -94,16 +114,15 @@ export function ReorderList<T extends { id: string }>({
   /** The same drag in a ref: pointermove can arrive before the state that
    *  started it has rendered, and the auto-scroll loop needs it too. */
   const dragRef = useRef<Drag | null>(null);
-  const boxes = useRef<Box[]>([]);
+  const geometry = useRef<Geometry | null>(null);
   const pointer = useRef({ x: 0, y: 0 });
   const frame = useRef<number | null>(null);
-  /** A finished drag ends in a click on the handle; that click is not a tap. */
-  const swallowClick = useRef(false);
   /** After a step that greys out the button just pressed, move focus across. */
   const refocus = useRef<{ id: string; dir: -1 | 1 } | null>(null);
 
+  const list = useRef<HTMLDivElement | null>(null);
   const rows = useRef(new Map<string, HTMLDivElement | null>());
-  const handles = useRef(new Map<string, HTMLButtonElement | null>());
+  const arrows = useRef(new Map<string, HTMLButtonElement | null>());
 
   const ids = items.map((i) => i.id);
 
@@ -133,11 +152,11 @@ export function ReorderList<T extends { id: string }>({
   /** Which row is the pointer over? Containment first, nearest centre after,
    *  so a pointer dragged off the side of the list still has an answer. */
   const indexAt = (x: number, y: number): number => {
-    const list = boxes.current;
+    const boxes = geometry.current?.boxes ?? [];
     let nearest = 0;
     let best = Infinity;
-    for (let i = 0; i < list.length; i++) {
-      const b = list[i];
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i];
       if (x >= b.left && x <= b.right && y >= b.top && y <= b.bottom) return i;
       const d = (y - (b.top + b.bottom) / 2) ** 2 + (x - (b.left + b.right) / 2) ** 2;
       if (d < best) {
@@ -185,6 +204,7 @@ export function ReorderList<T extends { id: string }>({
   function stop() {
     if (frame.current !== null) cancelAnimationFrame(frame.current);
     frame.current = null;
+    geometry.current = null;
     put(null);
   }
 
@@ -194,9 +214,9 @@ export function ReorderList<T extends { id: string }>({
     if (!dragging) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      swallowClick.current = true;
       if (frame.current !== null) cancelAnimationFrame(frame.current);
       frame.current = null;
+      geometry.current = null;
       dragRef.current = null;
       setDrag(null);
     };
@@ -221,19 +241,16 @@ export function ReorderList<T extends { id: string }>({
     const i = ids.indexOf(want.id);
     if (i < 0) return;
     const stuck = want.dir === -1 ? i === 0 : i === ids.length - 1;
-    if (stuck) handles.current.get(`${want.id}:${-want.dir}`)?.focus();
+    if (stuck) arrows.current.get(`${want.id}:${-want.dir}`)?.focus();
   });
 
   const startPress =
     (id: string, index: number) => (e: React.PointerEvent<HTMLButtonElement>) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
-      // Browsers disagree about whether a click follows a drag, so a swallow
-      // left armed by the last one is cleared here rather than left to eat the
-      // next genuine tap.
-      swallowClick.current = false;
-      // Freeze where every row is now, in page coordinates, so that lifting a
-      // row and scrolling the page cannot change the answer mid-drag.
-      boxes.current = ids.flatMap((rowId) => {
+      // Freeze where every row is now, in page coordinates, so that neither
+      // the rows sliding aside nor the page scrolling can change the answer
+      // mid-drag.
+      const boxes = ids.flatMap((rowId) => {
         const r = rows.current.get(rowId)?.getBoundingClientRect();
         if (!r) return [];
         return [
@@ -246,6 +263,15 @@ export function ReorderList<T extends { id: string }>({
           },
         ];
       });
+      // Half-measured is worse than not dragging at all: the gap would open in
+      // the wrong place. Up and Down still work.
+      if (boxes.length !== ids.length || boxes.length < 2) return;
+      const frame = list.current?.getBoundingClientRect();
+      geometry.current = {
+        boxes,
+        gap: Math.max(0, boxes[1].top - boxes[0].bottom),
+        containerTop: (frame?.top ?? 0) + window.scrollY,
+      };
       pointer.current = { x: e.clientX, y: e.clientY };
       e.currentTarget.setPointerCapture(e.pointerId);
       put({
@@ -276,34 +302,41 @@ export function ReorderList<T extends { id: string }>({
     const d = dragRef.current;
     if (!d || d.pointerId !== e.pointerId) return;
     e.currentTarget.releasePointerCapture?.(e.pointerId);
-    // A press that never became a drag falls through to the click handler,
-    // and the button does its ordinary one-step job.
-    if (d.lifted) {
-      swallowClick.current = true;
-      apply(d.id, d.target);
-    }
+    // A press that never became a drag leaves the order alone - the handle has
+    // nothing else to do on a tap.
+    if (d.lifted) apply(d.id, d.target);
     stop();
   };
 
   const onCancel = (e: React.PointerEvent<HTMLButtonElement>) => {
     const d = dragRef.current;
     if (!d || d.pointerId !== e.pointerId) return;
-    if (d.lifted) swallowClick.current = true;
     stop();
   };
 
+  /** Arrow keys on the handle, so it is worth something without a pointer.
+   *  The handle is never disabled, so focus stays on it however far the row
+   *  travels - it needs no partner button to hand focus to, as Up and Down do. */
+  const onGripKey = (id: string) => (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const at = ids.indexOf(id);
+    if (at < 0) return;
+    let to = at;
+    if (e.key === 'ArrowUp') to = at - 1;
+    else if (e.key === 'ArrowDown') to = at + 1;
+    else if (e.key === 'Home') to = 0;
+    else if (e.key === 'End') to = ids.length - 1;
+    else return;
+    e.preventDefault();
+    apply(id, to);
+  };
+
   const step = (id: string, dir: -1 | 1) => () => {
-    if (swallowClick.current) {
-      swallowClick.current = false;
-      return;
-    }
     refocus.current = { id, dir };
     apply(id, ids.indexOf(id) + dir);
   };
 
-  const handle = (item: T, index: number, dir: -1 | 1) => {
+  const arrow = (item: T, index: number, dir: -1 | 1) => {
     const off = dir === -1 ? index === 0 : index === items.length - 1;
-    const grabbed = drag !== null && drag.lifted && drag.id === item.id;
     // `flex-1` inside the stacked column: the two buttons split the height of
     // the row between them and the row grows to fit, so the targets stay
     // comfortable however large the text is set. No `leading-none` on the
@@ -313,22 +346,16 @@ export function ReorderList<T extends { id: string }>({
       <button
         type="button"
         ref={(el) => {
-          handles.current.set(`${item.id}:${dir}`, el);
+          arrows.current.set(`${item.id}:${dir}`, el);
         }}
         disabled={off}
         aria-label={dir === -1 ? upLabelFor(item) : downLabelFor(item)}
-        className={`tap flex w-full flex-1 touch-none select-none flex-col items-center justify-center gap-0.5 rounded-2xl border-2 px-1 text-sm font-semibold transition-colors ${
+        className={`tap flex w-full flex-1 select-none flex-col items-center justify-center gap-0.5 rounded-2xl border-2 px-1 text-sm font-semibold transition-colors ${
           off
             ? 'cursor-default border-line-soft bg-transparent text-ink-faint opacity-50'
-            : grabbed
-              ? 'cursor-grabbing border-brand bg-brand text-white'
-              : 'border-line bg-sunk text-ink-soft hover:border-brand hover:text-brand'
+            : 'border-line bg-sunk text-ink-soft hover:border-brand hover:text-brand'
         }`}
         onClick={step(item.id, dir)}
-        onPointerDown={off ? undefined : startPress(item.id, index)}
-        onPointerMove={onMove}
-        onPointerUp={onRelease}
-        onPointerCancel={onCancel}
       >
         <span aria-hidden="true" className="text-lg leading-none">
           {dir === -1 ? '▲' : '▼'}
@@ -338,13 +365,83 @@ export function ReorderList<T extends { id: string }>({
     );
   };
 
+  /** The grip. Full height of the row, and it says "Move" - the dots on their
+   *  own would be an icon-only control, which nothing here is. */
+  const grip = (item: T, index: number) => {
+    const grabbed = drag !== null && drag.lifted && drag.id === item.id;
+    return (
+      <button
+        type="button"
+        aria-label={dragLabelFor(item)}
+        className={`tap flex w-full flex-1 touch-none select-none flex-col items-center justify-center gap-1 rounded-2xl border-2 px-1 text-sm font-semibold transition-colors ${
+          grabbed
+            ? 'cursor-grabbing border-brand bg-brand text-white'
+            : 'cursor-grab border-line bg-sunk text-ink-soft hover:border-brand hover:text-brand'
+        }`}
+        onPointerDown={startPress(item.id, index)}
+        onPointerMove={onMove}
+        onPointerUp={onRelease}
+        onPointerCancel={onCancel}
+        onKeyDown={onGripKey(item.id)}
+      >
+        <span aria-hidden="true" className="grid grid-cols-2 gap-[0.2rem]">
+          {Array.from({ length: 6 }, (_, i) => (
+            <span key={i} className="size-[0.3rem] rounded-full bg-current" />
+          ))}
+        </span>
+        <span aria-hidden="true">{dragLabel}</span>
+      </button>
+    );
+  };
+
+  /* ---- where everything sits while a drag is in progress ---- */
+  const geo = geometry.current;
+  const busy = drag !== null && drag.lifted && geo !== null;
+  /** The height the dragged row takes with it: exactly the space the rows it
+   *  passes have to give back, and the space the gap has to open. */
+  const span =
+    busy && drag && geo
+      ? geo.boxes[drag.from].bottom - geo.boxes[drag.from].top + geo.gap
+      : 0;
+
+  /** How far row `i` slides to make room. Every row between where the person
+   *  came from and where they would land moves one place towards the vacancy. */
+  const slide = (i: number) => {
+    if (!busy || !drag) return 0;
+    const { from, target } = drag;
+    if (i === from) return 0;
+    if (target > from && i > from && i <= target) return -span;
+    if (target < from && i >= target && i < from) return span;
+    return 0;
+  };
+
+  let gapTop = 0;
+  let gapHeight = 0;
+  if (busy && drag && geo) {
+    const b = geo.boxes;
+    gapHeight = b[drag.from].bottom - b[drag.from].top;
+    // Dragging downwards, the rows in between have already slid up, so the
+    // vacancy is below the last of them. Upwards, it is simply where that row
+    // used to be.
+    const top =
+      drag.target > drag.from ? b[drag.target].bottom - span + geo.gap : b[drag.target].top;
+    gapTop = top - geo.containerTop;
+  }
+
   return (
-    <div className={className}>
+    <div ref={list} className={`relative ${className}`}>
+      {busy && (
+        <div
+          className="pointer-events-none absolute start-0 end-0 z-0 flex items-center justify-center rounded-2xl border-4 border-dashed border-gold bg-gold/10 px-2 text-center text-base font-semibold text-gold"
+          style={{ top: `${gapTop}px`, height: `${gapHeight}px` }}
+        >
+          {placeHereLabel}
+        </div>
+      )}
+
       {items.map((item, index) => {
-        const busy = drag !== null && drag.lifted;
-        const lifted = busy && drag.id === item.id;
-        const isTarget = busy && drag.id !== item.id && drag.target === index;
-        const faded = busy && !lifted && !isTarget;
+        const lifted = busy && drag !== null && drag.id === item.id;
+        const by = slide(index);
         return (
           <div
             key={item.id}
@@ -354,13 +451,24 @@ export function ReorderList<T extends { id: string }>({
             style={
               lifted && drag
                 ? { transform: `translate3d(${drag.dx}px, ${drag.dy}px, 0)` }
-                : undefined
+                : by
+                  ? { transform: `translate3d(0, ${by}px, 0)` }
+                  : undefined
             }
             className={`relative flex items-stretch gap-2 rounded-2xl ${
-              busy ? 'select-none' : ''
-            } ${lifted ? 'z-30 shadow-2xl ring-4 ring-brand' : ''} ${
-              isTarget ? 'z-10 ring-4 ring-gold' : ''
-            } ${faded ? 'opacity-60' : ''}`}
+              busy ? 'select-none bg-paper' : ''
+            } ${
+              lifted
+                ? 'z-30 shadow-2xl ring-4 ring-brand'
+                : // Only the rows sliding aside are animated, and only while
+                  // the drag is on: the dragged row has to sit under the
+                  // finger rather than catch up with it, and on release the
+                  // list is re-ordered for real, so a transition left running
+                  // would slide every row back out of its new place.
+                  busy
+                  ? 'z-10 transition-transform duration-150 ease-out'
+                  : ''
+            }`}
           >
             <span
               aria-hidden="true"
@@ -369,22 +477,20 @@ export function ReorderList<T extends { id: string }>({
               {index + 1}
             </span>
             <div className="flex min-w-0 flex-1 items-stretch">{renderItem(item)}</div>
-            {/* One narrow column, Up above Down, so the pair costs the width of
-                a single button - the row still fits a small phone at the
-                largest text size. */}
-            <div className="flex w-[3.5rem] shrink-0 flex-col gap-1">
-              {handle(item, index, -1)}
-              {handle(item, index, 1)}
+            {/* Both control columns are the 3rem `tap` minimum and no wider:
+                the handle and the pair of arrows together cost the width of
+                two buttons, and the name beside them still has room on a small
+                phone at the largest text size. Up sits above Down so that the
+                words mean what they say. */}
+            <div className="flex w-12 shrink-0 flex-col">{grip(item, index)}</div>
+            <div className="flex w-12 shrink-0 flex-col gap-1">
+              {arrow(item, index, -1)}
+              {arrow(item, index, 1)}
             </div>
 
             {lifted && drag && (
               <span className="pointer-events-none absolute -top-3 start-6 rounded-full bg-brand px-3 py-0.5 text-sm font-semibold text-white shadow-lg">
                 {describePosition(drag.target + 1, items.length)}
-              </span>
-            )}
-            {isTarget && (
-              <span className="pointer-events-none absolute -top-3 start-6 rounded-full bg-gold px-3 py-0.5 text-sm font-semibold text-white shadow-lg">
-                {placeHereLabel}
               </span>
             )}
           </div>

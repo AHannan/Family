@@ -22,15 +22,21 @@ export function PersonSheet({
   onFocus,
   onEdit,
   onAdd,
+  readOnly = false,
 }: {
   tree: Tree;
   personId: string | null;
   onClose: () => void;
   onFocus: (id: string) => void;
-  onEdit: (id: string) => void;
-  onAdd: (kind: RelationKind, toId: string) => void;
+  /* Both are optional because the shared-link page has nothing to hand them:
+     there is no form to open and nobody to add. */
+  onEdit?: (id: string) => void;
+  onAdd?: (kind: RelationKind, toId: string) => void;
+  readOnly?: boolean;
 }) {
   const { settings, deletePerson, linkSpouse, unlinkSpouse, undo } = useApp();
+  // See the note in FamilyView: swapping the component beats guarding each use.
+  const Add = readOnly ? NoChip : AddChip;
   const s = t(settings.locale);
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
@@ -58,12 +64,16 @@ export function PersonSheet({
         closeLabel={s.close}
         onClose={onClose}
         footer={
-          <>
-            <Button onClick={() => onEdit(person!.id)}>{s.edit}</Button>
-            <Button variant="danger" onClick={() => setConfirming(true)}>
-              {s.remove}
-            </Button>
-          </>
+          readOnly ? (
+            <Button onClick={onClose}>{s.close}</Button>
+          ) : (
+            <>
+              <Button onClick={() => onEdit?.(person!.id)}>{s.edit}</Button>
+              <Button variant="danger" onClick={() => setConfirming(true)}>
+                {s.remove}
+              </Button>
+            </>
+          )
         }
       >
         <div className="flex items-center gap-4">
@@ -96,12 +106,12 @@ export function PersonSheet({
           {father ? (
             <Chip person={father} onClick={() => go(father.id)} />
           ) : (
-            <AddChip label={s.addFather} onClick={() => onAdd('father', person.id)} />
+            <Add label={s.addFather} onClick={() => onAdd?.('father', person.id)} />
           )}
           {mother ? (
             <Chip person={mother} onClick={() => go(mother.id)} />
           ) : (
-            <AddChip label={s.addMother} onClick={() => onAdd('mother', person.id)} />
+            <Add label={s.addMother} onClick={() => onAdd?.('mother', person.id)} />
           )}
         </Group>
 
@@ -109,28 +119,30 @@ export function PersonSheet({
           {spouses.map((sp) => (
             <span key={sp.id} className="inline-flex">
               <Chip person={sp} onClick={() => go(sp.id)} joined />
-              <button
-                type="button"
-                aria-label={`${s.remove}: ${displayName(sp, settings.locale)}`}
-                onClick={() => {
-                  unlinkSpouse(tree.id, person.id, sp.id);
-                  toast.show(s.saved, { label: s.undo, onAction: () => undo() });
-                }}
-                className="tap rounded-e-2xl border-2 border-s-0 border-line px-3 text-lg text-ink-faint hover:bg-danger hover:text-white"
-              >
-                ✕
-              </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  aria-label={`${s.remove}: ${displayName(sp, settings.locale)}`}
+                  onClick={() => {
+                    unlinkSpouse(tree.id, person.id, sp.id);
+                    toast.show(s.saved, { label: s.undo, onAction: () => undo() });
+                  }}
+                  className="tap rounded-e-2xl border-2 border-s-0 border-line px-3 text-lg text-ink-faint hover:bg-danger hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
             </span>
           ))}
-          <AddChip
+          <Add
             label={person.gender === 'f' ? s.addHusband : s.addWife}
-            onClick={() => onAdd(person.gender === 'f' ? 'husband' : 'wife', person.id)}
+            onClick={() => onAdd?.(person.gender === 'f' ? 'husband' : 'wife', person.id)}
           />
         </Group>
 
         {/* Marrying two people who are both already in the tree is common
             enough - cousins, in-laws - to deserve its own control. */}
-        {tree.people.length > 1 && (
+        {tree.people.length > 1 && !readOnly && (
           <label className="mt-2 block">
             <span className="mb-1 block text-base font-semibold text-ink-soft">
               {s.linkExisting}
@@ -161,8 +173,8 @@ export function PersonSheet({
           {kids.map((k) => (
             <Chip key={k.id} person={k} onClick={() => go(k.id)} />
           ))}
-          <AddChip label={s.addSon} onClick={() => onAdd('son', person.id)} />
-          <AddChip label={s.addDaughter} onClick={() => onAdd('daughter', person.id)} />
+          <Add label={s.addSon} onClick={() => onAdd?.('son', person.id)} />
+          <Add label={s.addDaughter} onClick={() => onAdd?.('daughter', person.id)} />
         </Group>
 
         {sibs.length > 0 && (
@@ -228,6 +240,11 @@ function Chip({
       {displayName(person, settings.locale)}
     </button>
   );
+}
+
+/** Stands in for AddChip when a person is only being looked at. */
+function NoChip() {
+  return null;
 }
 
 function AddChip({ label, onClick }: { label: string; onClick: () => void }) {

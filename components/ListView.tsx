@@ -16,7 +16,9 @@ export function ListView({
 }: {
   tree: Tree;
   onOpen: (id: string) => void;
-  onAddPerson: () => void;
+  /* Absent on the shared-link page - there is nobody to add to a family that
+     is not yours, so the button goes with it. */
+  onAddPerson?: () => void;
 }) {
   const { settings } = useApp();
   const s = t(settings.locale);
@@ -47,9 +49,11 @@ export function ListView({
           aria-label={s.search}
           className="tap min-w-0 flex-1 rounded-xl border-2 border-line bg-card px-4 text-lg text-ink placeholder:text-ink-faint focus:border-brand"
         />
-        <Button variant="primary" onClick={onAddPerson}>
-          + {s.addPerson}
-        </Button>
+        {onAddPerson && (
+          <Button variant="primary" onClick={onAddPerson}>
+            + {s.addPerson}
+          </Button>
+        )}
       </div>
 
       <p className="mb-2 text-base text-ink-soft">

@@ -25,14 +25,24 @@ export function FamilyView({
   onFocus,
   onAdd,
   onOpen,
+  readOnly = false,
 }: {
   tree: Tree;
   focus: Person;
   onFocus: (id: string) => void;
   onAdd: (kind: RelationKind, toId: string) => void;
   onOpen: (id: string) => void;
+  /* Somebody looking at a shared family can walk it but not change it. The
+     empty "+ Add mother" slots and the reorder control are left out entirely
+     rather than shown disabled - a control that cannot work is worse than no
+     control at all for the person this app is built for. */
+  readOnly?: boolean;
 }) {
   const { settings, reorderChildren, undo } = useApp();
+  // Read-only mode has no "+ Add mother" slots at all. Swapping the component
+  // once here keeps the markup below free of a guard at every empty slot -
+  // several of which sit inside a ternary, where a `{...}` guard is not legal.
+  const Add = readOnly ? NoSlot : AddSlot;
   const toast = useToast();
   const s = t(settings.locale);
 
@@ -52,12 +62,12 @@ export function FamilyView({
           {father ? (
             <RelativeButton person={father} onClick={() => onFocus(father.id)} role={s.father} />
           ) : (
-            <AddSlot label={s.addFather} onClick={() => onAdd('father', focus.id)} />
+            <Add label={s.addFather} onClick={() => onAdd('father', focus.id)} />
           )}
           {mother ? (
             <RelativeButton person={mother} onClick={() => onFocus(mother.id)} role={s.mother} />
           ) : (
-            <AddSlot label={s.addMother} onClick={() => onAdd('mother', focus.id)} />
+            <Add label={s.addMother} onClick={() => onAdd('mother', focus.id)} />
           )}
         </div>
       </Section>
@@ -98,7 +108,7 @@ export function FamilyView({
           {spouses.map((sp) => (
             <RelativeButton key={sp.id} person={sp} onClick={() => onFocus(sp.id)} />
           ))}
-          <AddSlot
+          <Add
             label={focus.gender === 'f' ? s.addHusband : s.addWife}
             onClick={() => onAdd(focus.gender === 'f' ? 'husband' : 'wife', focus.id)}
             compact
@@ -113,7 +123,7 @@ export function FamilyView({
           often missing - so the order is whatever the user puts it in, and
           that order is what the chart draws. */}
       <Section title={`${s.children}${kids.length ? ` (${kids.length})` : ''}`}>
-        {kids.length > 1 ? (
+        {kids.length > 1 && !readOnly ? (
           <>
             <p className="mb-2 text-base text-ink-faint">{s.reorderHint}</p>
             {/* One column, numbered: "Up" and "Down" only mean something
@@ -129,6 +139,8 @@ export function FamilyView({
               downLabel={s.moveDown}
               upLabelFor={(k) => s.moveUpFor(displayName(k, settings.locale))}
               downLabelFor={(k) => s.moveDownFor(displayName(k, settings.locale))}
+              dragLabel={s.dragHandle}
+              dragLabelFor={(k) => s.dragHandleFor(displayName(k, settings.locale))}
               placeHereLabel={s.placeHere}
               describePosition={(n, total) => s.positionOf(n, total)}
               describeMove={(n, total) => s.movedTo(n, total)}
@@ -149,8 +161,8 @@ export function FamilyView({
           </div>
         )}
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <AddSlot label={s.addSon} onClick={() => onAdd('son', focus.id)} />
-          <AddSlot label={s.addDaughter} onClick={() => onAdd('daughter', focus.id)} />
+          <Add label={s.addSon} onClick={() => onAdd('son', focus.id)} />
+          <Add label={s.addDaughter} onClick={() => onAdd('daughter', focus.id)} />
         </div>
       </Section>
 
@@ -165,8 +177,8 @@ export function FamilyView({
         )}
         {(focus.fatherId || focus.motherId) && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <AddSlot label={s.addBrother} onClick={() => onAdd('brother', focus.id)} />
-            <AddSlot label={s.addSister} onClick={() => onAdd('sister', focus.id)} />
+            <Add label={s.addBrother} onClick={() => onAdd('brother', focus.id)} />
+            <Add label={s.addSister} onClick={() => onAdd('sister', focus.id)} />
           </div>
         )}
       </Section>
@@ -217,6 +229,11 @@ function RelativeButton({
       </span>
     </button>
   );
+}
+
+/** Stands in for AddSlot when a family is only being looked at. */
+function NoSlot() {
+  return null;
 }
 
 function AddSlot({

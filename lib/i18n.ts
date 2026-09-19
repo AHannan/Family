@@ -81,9 +81,12 @@ export const strings = {
     moveDown: 'Down',
     moveUpFor: (name: string) => `Move ${name} up one place`,
     moveDownFor: (name: string) => `Move ${name} down one place`,
+    dragHandle: 'Move',
+    dragHandleFor: (name: string) =>
+      `Move ${name}: hold this and drag, or press the up and down arrow keys`,
     placeHere: 'Place here',
     positionOf: (n: number, total: number) => `Position ${n} of ${total}`,
-    reorderHint: 'Children are shown oldest first. Tap Up or Down to move someone one place. You can also hold a button down and drag the person where you want them.',
+    reorderHint: 'Children are shown oldest first. Tap Up or Down to move someone one place, or hold the Move handle and drag the person where you want them.',
     movedTo: (n: number, total: number) => `Moved to number ${n} of ${total}.`,
     orderSaved: 'New order saved.',
 
@@ -125,18 +128,31 @@ export const strings = {
     everyone: 'Everyone in this family',
 
     /* signing in with a phone number */
-    signInTitle: 'Type your phone number',
+    signInTitle: 'Sign in',
     signInBody:
-      'Your families are kept on this phone or tablet, filed under your number. There is no password and no code to wait for.',
+      'Type your number and the password that was sent to you. Your families are saved online, so they come back on any phone you sign in on.',
     signInNotice:
-      'Nothing is sent anywhere. Anyone using this device can open a number, so do not keep anything private here.',
+      'Only you can open your families. Keep your password to yourself - anyone who has it can sign in as you.',
     phoneLabel: 'Phone number',
-    phoneHint: 'For example: 0300 1234567',
+    phoneHint: 'With the country code, for example: +92 300 1234567',
     phoneRequired: 'Please type your phone number.',
     phoneInvalid: 'That does not look like a phone number. Please check it and try again.',
-    continueLabel: 'See my families',
+    needsCountryCode:
+      'Please include the country code, starting with +. For a Pakistani number that is +92, so 0300 1234567 becomes +92 300 1234567.',
+    passwordLabel: 'Password',
+    passwordHint: 'The password that was sent to you.',
+    passwordRequired: 'Please type your password.',
+    wrongPassword:
+      'That number and password do not match. Please check them and try again, or ask for a new password.',
+    accountInactive:
+      'This number has been turned off. Nothing has been deleted - ask for it to be turned back on.',
+    signInOffline: 'Could not reach the internet. Please check your connection and try again.',
+    continueLabel: 'Sign in',
+    noAccountTitle: 'Do not have a password yet?',
+    noAccountBody:
+      'There is nothing to sign up for. Ask for an account and give your phone number, and a password will be sent to you.',
     savedNumbers: 'Numbers used on this device',
-    savedNumbersHint: 'Tap a number to open the families saved under it.',
+    savedNumbersHint: 'Tap a number to fill it in, then type your password.',
     emptyAccount: 'No families yet',
     newNumberNote: 'A number nobody has used here yet starts with an empty list.',
     forgetNumber: 'Remove from list',
@@ -146,11 +162,36 @@ export const strings = {
     numberForgotten: (phone: string) => `${phone} removed from the list.`,
     yourNumber: 'Your number',
     yourNumberBody: 'Your families are saved on this device under this number.',
-    signedInAs: (phone: string) => `Signed in as ${phone}`,
     signOutConfirm: (phone: string) =>
       `Sign out of ${phone}? Nothing is deleted. Type the same number again whenever you want your families back.`,
     signedOut: 'Signed out.',
-    useAnotherNumber: 'Use another number',
+    signOut: 'Sign out',
+    /* syncing */
+    savedOnline: 'Saved online',
+    syncing: 'Saving...',
+    syncError: 'Not saved online yet - it will go up when the internet is back.',
+    /* sharing a family */
+    share: 'Share',
+    shareTitle: 'Share this family',
+    shareBody:
+      'Off by default. Turn it on and anyone you send the link to can look at this family - they cannot change anything.',
+    shareOn: 'Anyone with the link can see it',
+    shareOff: 'Only you can see it',
+    shareTurnOn: 'Let people see it with a link',
+    shareTurnOff: 'Stop sharing',
+    shareLink: 'The link to send',
+    copyLink: 'Copy the link',
+    linkCopied: 'Link copied.',
+    shareStopped: 'Sharing stopped. The old link no longer opens.',
+    sharePending: 'The link appears once this family has been saved online.',
+    publicBadge: 'Shared',
+    /* the read-only page a link opens */
+    publicHeading: 'A shared family tree',
+    publicNote: 'You are looking at a shared family. You cannot change anything here.',
+    publicNotFound:
+      'This link does not open a family. It may have been turned off, or the link may be incomplete.',
+    publicLoading: 'Opening...',
+    signOutTitle: 'Sign out of this number',
     familyCount: (n: number) => (n === 1 ? '1 family' : `${n} families`),
 
     /* settings + backup */
@@ -252,9 +293,12 @@ export const strings = {
     moveDown: 'نیچے',
     moveUpFor: (name: string) => `${name} کو ایک درجہ اوپر کریں`,
     moveDownFor: (name: string) => `${name} کو ایک درجہ نیچے کریں`,
+    dragHandle: 'کھسکائیں',
+    dragHandleFor: (name: string) =>
+      `${name} کو کھسکائیں: اسے دبا کر گھسیٹیں، یا اوپر نیچے کے تیر والے بٹن دبائیں`,
     placeHere: 'یہاں رکھیں',
     positionOf: (n: number, total: number) => `${total} میں سے ${n} نمبر`,
-    reorderHint: 'اولاد بڑے سے چھوٹے کی ترتیب سے دکھائی جاتی ہے۔ کسی کو ایک درجہ آگے پیچھے کرنے کے لیے «اوپر» یا «نیچے» دبائیں۔ آپ بٹن کو دبائے رکھ کر اُس فرد کو اپنی مرضی کی جگہ گھسیٹ بھی سکتے ہیں۔',
+    reorderHint: 'اولاد بڑے سے چھوٹے کی ترتیب سے دکھائی جاتی ہے۔ کسی کو ایک درجہ آگے پیچھے کرنے کے لیے «اوپر» یا «نیچے» دبائیں، یا «کھسکائیں» کا نشان دبا کر اُس فرد کو اپنی مرضی کی جگہ گھسیٹ لیں۔',
     movedTo: (n: number, total: number) => `${total} میں سے ${n} نمبر پر کر دیا گیا۔`,
     orderSaved: 'نئی ترتیب محفوظ ہو گئی۔',
 
@@ -296,18 +340,31 @@ export const strings = {
     everyone: 'اس خاندان کے تمام افراد',
 
     /* signing in with a phone number */
-    signInTitle: 'اپنا فون نمبر لکھیں',
+    signInTitle: 'اندر آئیں',
     signInBody:
-      'آپ کے خاندان اسی فون یا ٹیبلٹ میں، آپ کے نمبر کے ساتھ محفوظ رہتے ہیں۔ نہ کوئی پاس ورڈ ہے، نہ کسی کوڈ کا انتظار۔',
+      'اپنا نمبر اور وہ پاس ورڈ لکھیں جو آپ کو بھیجا گیا ہے۔ آپ کے خاندان آن لائن محفوز ہیں، اس لیے جس فون پر بھی اندر آئیں، وہ واپس مل جائیں گے۔',
     signInNotice:
-      'کچھ بھی کہیں نہیں بھیجا جاتا۔ یہ آلہ استعمال کرنے والا کوئی بھی شخص کوئی بھی نمبر کھول سکتا ہے، اس لیے یہاں کوئی نجی بات نہ رکھیں۔',
+      'آپ کے خاندان صرف آپ کھول سکتے ہیں۔ اپنا پاس ورڈ کسی کو نہ دیں - جس کے پاس ہوگا وہ آپ بن کر اندر آ سکتا ہے۔',
     phoneLabel: 'فون نمبر',
-    phoneHint: 'مثال کے طور پر: 0300 1234567',
+    phoneHint: 'ملک کے کوڈ کے ساتھ، مثال کے طور پر: +92 300 1234567',
     phoneRequired: 'براہِ کرم اپنا فون نمبر لکھیں۔',
     phoneInvalid: 'یہ فون نمبر نہیں لگتا۔ براہِ کرم دوبارہ دیکھ لیں۔',
-    continueLabel: 'میرے خاندان دکھائیں',
+    needsCountryCode:
+      'براہِ کرم ملک کا کوڈ بھی لکھیں، + سے شروع کریں۔ پاکستان کا کوڈ +92 ہے، یعنی 0300 1234567 کی جگہ +92 300 1234567۔',
+    passwordLabel: 'پاس ورڈ',
+    passwordHint: 'وہ پاس ورڈ جو آپ کو بھیجا گیا ہے۔',
+    passwordRequired: 'براہِ کرم اپنا پاس ورڈ لکھیں۔',
+    wrongPassword:
+      'یہ نمبر اور پاس ورڈ آپس میں نہیں ملتے۔ براہِ کرم دوبارہ دیکھ لیں، یا نیا پاس ورڈ منگوا لیں۔',
+    accountInactive:
+      'یہ نمبر بند کر دیا گیا ہے۔ کچھ بھی ضائع نہیں ہوا - دوبارہ کھولنے کے لیے کہیں۔',
+    signInOffline: 'انٹرنیٹ تک نہیں پہنچ سکے۔ براہِ کرم اپنا کنکشن دیکھ کر دوبارہ کوشش کریں۔',
+    continueLabel: 'اندر آئیں',
+    noAccountTitle: 'ابھی پاس ورڈ نہیں ملا؟',
+    noAccountBody:
+      'یہاں خود سے اکاؤنٹ بنانے کی کوئی ضرورت نہیں۔ اپنا فون نمبر دے کر اکاؤنٹ کی درخواست کریں، پاس ورڈ آپ کو بھیج دیا جائے گا۔',
     savedNumbers: 'اس آلے میں استعمال ہونے والے نمبر',
-    savedNumbersHint: 'کسی نمبر پر ٹیپ کریں تاکہ اس کے خاندان کھل جائیں۔',
+    savedNumbersHint: 'کسی نمبر پر ٹیپ کریں، پھر اپنا پاس ورڈ لکھیں۔',
     emptyAccount: 'ابھی کوئی خاندان نہیں',
     newNumberNote: 'جو نمبر یہاں پہلے استعمال نہیں ہوا، اس کی فہرست خالی ہوگی۔',
     forgetNumber: 'فہرست سے ہٹائیں',
@@ -317,11 +374,36 @@ export const strings = {
     numberForgotten: (phone: string) => `${phone} فہرست سے ہٹا دیا گیا۔`,
     yourNumber: 'آپ کا نمبر',
     yourNumberBody: 'آپ کے خاندان اسی آلے میں، اس نمبر کے ساتھ محفوظ ہیں۔',
-    signedInAs: (phone: string) => `${phone} کے ساتھ کھلا ہوا ہے`,
     signOutConfirm: (phone: string) =>
       `${phone} سے باہر نکل جائیں؟ کچھ بھی ضائع نہیں ہوگا۔ جب چاہیں یہی نمبر دوبارہ لکھ کر اپنے خاندان واپس لے لیں۔`,
     signedOut: 'باہر نکل گئے۔',
-    useAnotherNumber: 'کوئی اور نمبر استعمال کریں',
+    signOut: 'باہر نکلیں',
+    /* syncing */
+    savedOnline: 'آن لائن محفوز',
+    syncing: 'محفوز ہو رہا ہے...',
+    syncError: 'ابھی آن لائن محفوز نہیں ہوا - انٹرنیٹ آتے ہی ہو جائے گا۔',
+    /* sharing a family */
+    share: 'دکھائیں',
+    shareTitle: 'یہ خاندان دوسروں کو دکھائیں',
+    shareBody:
+      'یہ پہلے سے بند ہے۔ کھولنے پر جسے آپ لنک بھیجیں گے وہ یہ خاندان دیکھ سکے گا - بدل نہیں سکے گا۔',
+    shareOn: 'لنک رکھنے والا کوئی بھی دیکھ سکتا ہے',
+    shareOff: 'صرف آپ دیکھ سکتے ہیں',
+    shareTurnOn: 'لنک سے دکھانے کی اجازت دیں',
+    shareTurnOff: 'دکھانا بند کریں',
+    shareLink: 'بھیجنے والا لنک',
+    copyLink: 'لنک کاپی کریں',
+    linkCopied: 'لنک کاپی ہو گیا۔',
+    shareStopped: 'دکھانا بند ہو گیا۔ پرانا لنک اب نہیں کھلے گا۔',
+    sharePending: 'یہ خاندان آن لائن محفوز ہوتے ہی لنک آ جائے گا۔',
+    publicBadge: 'دکھایا جا رہا ہے',
+    /* the read-only page a link opens */
+    publicHeading: 'دکھایا گیا خاندانی شجرہ',
+    publicNote: 'آپ ایک دکھایا گیا خاندان دیکھ رہے ہیں۔ یہاں کچھ بدلا نہیں جا سکتا۔',
+    publicNotFound:
+      'اس لنک سے کوئی خاندان نہیں کھلتا۔ ممکن ہے بند کر دیا گیا ہو، یا لنک ادھورا ہو۔',
+    publicLoading: 'کھل رہا ہے...',
+    signOutTitle: 'اس نمبر سے باہر نکلیں',
     familyCount: (n: number) => `${n} خاندان`,
 
     /* settings + backup */
