@@ -116,12 +116,13 @@ export function ChartView({
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
   function onPointerMove(e: React.PointerEvent) {
-    if (!drag.current) return;
-    setView((v) => ({
-      ...v,
-      x: drag.current!.ox + (e.clientX - drag.current!.x),
-      y: drag.current!.oy + (e.clientY - drag.current!.y),
-    }));
+    const d = drag.current;
+    if (!d) return;
+    // Read the offsets out here: the updater below may not run until after a
+    // pointerup has cleared the ref, and reading it in there would throw.
+    const x = d.ox + (e.clientX - d.x);
+    const y = d.oy + (e.clientY - d.y);
+    setView((v) => ({ ...v, x, y }));
   }
   function endDrag() {
     drag.current = null;
