@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { PersonSearchField } from '@/components/PersonSearch';
 import { Button } from '@/components/ui';
 import { lifespan, spousesOf } from '@/lib/family';
 import { altName, displayName, t } from '@/lib/i18n';
@@ -141,8 +142,6 @@ export function ChartView({
     });
   }
 
-  const roots = tree.people;
-
   if (!tree.rootId || !built.order.length) {
     return <p className="p-8 text-center text-xl text-ink-soft">{s.noneYet}</p>;
   }
@@ -157,20 +156,12 @@ export function ChartView({
             spouse and maternal toggles below are purely local to the view, so
             they stay. */}
         {onRootChange && (
-          <label className="flex items-center gap-2 text-base font-semibold text-ink-soft">
-            {s.startFrom}
-            <select
-              value={tree.rootId ?? ''}
-              onChange={(e) => onRootChange(e.target.value)}
-              className="tap max-w-52 rounded-xl border-2 border-line bg-card px-3 text-lg text-ink"
-            >
-              {roots.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {displayName(p, settings.locale)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <PersonSearchField
+            people={tree.people}
+            valueId={tree.rootId ?? null}
+            onPick={(p) => onRootChange(p.id)}
+            label={s.startFrom}
+          />
         )}
 
         <label className="flex items-center gap-2 text-base text-ink-soft">

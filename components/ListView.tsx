@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Lineage } from '@/components/PersonSearch';
 import { Avatar, Button } from '@/components/ui';
 import { lifespan } from '@/lib/family';
 import { altName, displayName, t } from '@/lib/i18n';
@@ -75,9 +76,9 @@ export function ListView({
               >
                 <Avatar name={p.name} gender={p.gender} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xl font-semibold">
-                    {displayName(p, settings.locale)}
-                  </span>
+                  {/* The name with its line around it, so two cousins called
+                      Ali are told apart without opening either of them. */}
+                  <Lineage people={tree.people} id={p.id} />
                   <span className="block truncate text-base text-ink-soft">
                     {[
                       settings.locale === 'ur' ? p.titleUr || p.title : p.title,

@@ -153,6 +153,29 @@ export function searchPeople(people: Person[], query: string, limit = 12): Perso
   return out;
 }
 
+/**
+ * A person with one step of their line on either side: the parent they hang
+ * from, and their first child. Names repeat inside a family - three Alis over
+ * four generations - so a bare name in a search result is not enough to tell
+ * them apart. The father comes first and the mother stands in when there is no
+ * father, exactly as `buildTree` picks a parent, so the line read here is the
+ * line drawn in the chart.
+ */
+export function lineageOf(
+  people: Person[],
+  id: string,
+): { parent: Person | null; person: Person | null; child: Person | null } {
+  const ix = indexPeople(people);
+  const person = ix.get(id) ?? null;
+  if (!person) return { parent: null, person: null, child: null };
+  const parentId = person.fatherId ?? person.motherId;
+  return {
+    parent: (parentId ? ix.get(parentId) : undefined) ?? null,
+    person,
+    child: people.find((p) => p.fatherId === id || p.motherId === id) ?? null,
+  };
+}
+
 export function lifespan(p: Person): string {
   if (p.birth && p.death) return `${p.birth} – ${p.death}`;
   if (p.death) return `– ${p.death}`;

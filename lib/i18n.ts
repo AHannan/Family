@@ -125,6 +125,7 @@ export const strings = {
     search: 'Search',
     searchHint: 'Search by name',
     noResults: 'Nobody matches that.',
+    searchMore: 'Keep typing to see more names.',
     everyone: 'Everyone in this family',
 
     /* signing in with a phone number */
@@ -337,6 +338,7 @@ export const strings = {
     search: 'تلاش',
     searchHint: 'نام سے تلاش کریں',
     noResults: 'کوئی نہیں ملا۔',
+    searchMore: 'مزید نام دیکھنے کے لیے لکھتے جائیں۔',
     everyone: 'اس خاندان کے تمام افراد',
 
     /* signing in with a phone number */
