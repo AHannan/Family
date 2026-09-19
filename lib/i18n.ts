@@ -76,6 +76,13 @@ export const strings = {
     nothingToUndo: 'Nothing to undo.',
     confirm: 'Yes, do it',
 
+    /* putting children in order */
+    move: 'Move',
+    movePerson: (name: string) => `Move ${name}`,
+    reorderHint: 'Children are shown oldest first. Drag the Move button, or use the arrow keys, to change the order.',
+    movedTo: (n: number, total: number) => `Moved to number ${n} of ${total}.`,
+    orderSaved: 'New order saved.',
+
     /* person form */
     personDetails: 'Details',
     name: 'Name',
@@ -206,6 +213,13 @@ export const strings = {
     undone: 'واپس کر دیا گیا۔',
     nothingToUndo: 'واپس کرنے کے لیے کچھ نہیں۔',
     confirm: 'جی ہاں، کر دیں',
+
+    /* putting children in order */
+    move: 'ترتیب',
+    movePerson: (name: string) => `${name} کی جگہ بدلیں`,
+    reorderHint: 'اولاد بڑے سے چھوٹے کی ترتیب سے دکھائی جاتی ہے۔ ترتیب بدلنے کے لیے «ترتیب» والے بٹن کو گھسیٹیں، یا تیر والے بٹن دبائیں۔',
+    movedTo: (n: number, total: number) => `${total} میں سے ${n} نمبر پر کر دیا گیا۔`,
+    orderSaved: 'نئی ترتیب محفوظ ہو گئی۔',
 
     /* person form */
     personDetails: 'تفصیل',

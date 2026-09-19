@@ -248,3 +248,37 @@ export function attach(
     }
   }
 }
+
+/**
+ * Put one person's children into a given order.
+ *
+ * Sibling order *is* the order people sit in the tree's list - the dates are
+ * free text and nothing parses them - so reordering means rewriting exactly
+ * the slots those children occupy and leaving everybody else where they are.
+ * Ids that are not children of `parentId` are ignored, and any child missing
+ * from `orderedIds` keeps their current place at the end.
+ */
+export function reorderChildren(
+  people: Person[],
+  parentId: string,
+  orderedIds: string[],
+): Person[] {
+  const kidIds = new Set(childrenOf(people, parentId).map((p) => p.id));
+  if (kidIds.size < 2) return people;
+
+  const wanted: string[] = [];
+  for (const id of orderedIds) if (kidIds.has(id) && !wanted.includes(id)) wanted.push(id);
+  for (const p of people) if (kidIds.has(p.id) && !wanted.includes(p.id)) wanted.push(p.id);
+
+  const ix = indexPeople(people);
+  const slots: number[] = [];
+  people.forEach((p, i) => {
+    if (kidIds.has(p.id)) slots.push(i);
+  });
+
+  const out = [...people];
+  slots.forEach((slot, i) => {
+    out[slot] = ix.get(wanted[i])!;
+  });
+  return out;
+}

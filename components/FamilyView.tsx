@@ -1,5 +1,7 @@
 'use client';
 
+import { ReorderList } from '@/components/ReorderList';
+import { useToast } from '@/components/Toast';
 import { Avatar, Button } from '@/components/ui';
 
 import { childrenOf, lifespan, siblingsOf, spousesOf, type RelationKind } from '@/lib/family';
@@ -30,7 +32,8 @@ export function FamilyView({
   onAdd: (kind: RelationKind, toId: string) => void;
   onOpen: (id: string) => void;
 }) {
-  const { settings } = useApp();
+  const { settings, reorderChildren, undo } = useApp();
+  const toast = useToast();
   const s = t(settings.locale);
 
   const father = tree.people.find((p) => p.id === focus.fatherId);
@@ -105,13 +108,38 @@ export function FamilyView({
 
       <Connector />
 
-      {/* ---- children ---- */}
+      {/* ---- children ----
+          Nothing can work out who is the eldest - the dates are free text and
+          often missing - so the order is whatever the user puts it in, and
+          that order is what the chart draws. */}
       <Section title={`${s.children}${kids.length ? ` (${kids.length})` : ''}`}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {kids.map((k) => (
-            <RelativeButton key={k.id} person={k} onClick={() => onFocus(k.id)} />
-          ))}
-        </div>
+        {kids.length > 1 ? (
+          <>
+            <p className="mb-2 text-base text-ink-faint">{s.reorderHint}</p>
+            <ReorderList
+              key={focus.id}
+              items={kids}
+              className="grid gap-3 sm:grid-cols-2"
+              rtl={settings.locale === 'ur'}
+              moveLabel={s.move}
+              moveLabelFor={(k) => s.movePerson(displayName(k, settings.locale))}
+              describeMove={(n, total) => s.movedTo(n, total)}
+              onReorder={(orderedIds) => {
+                reorderChildren(tree.id, focus.id, orderedIds);
+                toast.show(s.orderSaved, { label: s.undo, onAction: () => undo() });
+              }}
+              renderItem={(k) => (
+                <RelativeButton person={k} onClick={() => onFocus(k.id)} />
+              )}
+            />
+          </>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {kids.map((k) => (
+              <RelativeButton key={k.id} person={k} onClick={() => onFocus(k.id)} />
+            ))}
+          </div>
+        )}
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <AddSlot label={s.addSon} onClick={() => onAdd('son', focus.id)} />
           <AddSlot label={s.addDaughter} onClick={() => onAdd('daughter', focus.id)} />

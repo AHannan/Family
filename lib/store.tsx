@@ -18,7 +18,13 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { attach, repair, uniqueId, type RelationKind } from './family';
+import {
+  attach,
+  reorderChildren as reorderChildrenIn,
+  repair,
+  uniqueId,
+  type RelationKind,
+} from './family';
 import { buildSampleTree, SAMPLE_TREE_ID } from './seed';
 import { normalizePerson, type AppData, type Locale, type Person, type Settings, type Tree } from './types';
 
@@ -116,6 +122,7 @@ interface Ctx {
     relation?: { kind: RelationKind; toId: string },
   ) => Person | null;
   updatePerson: (treeId: string, personId: string, patch: Partial<Person>) => void;
+  reorderChildren: (treeId: string, parentId: string, orderedIds: string[]) => void;
   deletePerson: (treeId: string, personId: string) => void;
   linkSpouse: (treeId: string, aId: string, bId: string) => void;
   unlinkSpouse: (treeId: string, aId: string, bId: string) => void;
@@ -300,6 +307,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [mutate],
   );
 
+  /**
+   * Put a person's children in a chosen order - eldest first, usually.
+   *
+   * Sibling order is content, not a view setting, so it does go on the undo
+   * stack; the caller is expected to skip the call when nothing moved.
+   */
+  const reorderChildren = useCallback(
+    (treeId: string, parentId: string, orderedIds: string[]) => {
+      mutate((d) => {
+        const t = d.trees.find((x) => x.id === treeId);
+        if (!t) return;
+        t.people = reorderChildrenIn(t.people, parentId, orderedIds);
+        t.updatedAt = nowISO();
+      });
+    },
+    [mutate],
+  );
+
   const deletePerson = useCallback(
     (treeId: string, personId: string) => {
       mutate((d) => {
@@ -400,6 +425,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTreeField,
       addPerson,
       updatePerson,
+      reorderChildren,
       deletePerson,
       linkSpouse,
       unlinkSpouse,
@@ -410,7 +436,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       ready, data, getTree, setLocale, setTextScale, createTree, addSampleTree,
-      renameTree, deleteTree, setTreeField, addPerson, updatePerson, deletePerson,
+      renameTree, deleteTree, setTreeField, addPerson, updatePerson, reorderChildren,
+      deletePerson,
       linkSpouse, unlinkSpouse, canUndo, undo, exportBlob, importFile,
     ],
   );
